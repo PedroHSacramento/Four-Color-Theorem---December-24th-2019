@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h> 
+#include <stdbool.h>
 
 bool ERROR = false;
 char error_msg[100];
@@ -38,7 +38,7 @@ static void error(){
 static struct edge* find_edge(struct vertex* v, struct vertex* u){
 	struct edge* e = v->e;
 	int i;
-	
+
 	if(e == NULL){
 		strcpy(error_msg, "Invalid function input in find_edge: e == NULL \n");
 		error();
@@ -53,9 +53,9 @@ static struct edge* find_edge(struct vertex* v, struct vertex* u){
 }
 
 // adds edge between v and u to the end of the list of edges of v, creates it if it doesn't exist
-static void add_edge(struct vertex* v, struct vertex* u){	
+static void add_edge(struct vertex* v, struct vertex* u){
 	struct edge* e_v;
-	struct edge* e_u;		
+	struct edge* e_u;
 	if(v == u){
 		strcpy(error_msg, "Incorrect function input: add_edge recieved a self loop\n");
 		error();
@@ -87,7 +87,7 @@ static void add_edge(struct vertex* v, struct vertex* u){
 		}
 		e_v = e_u->rev;
 	}
-	
+
 	if(v->e == NULL){
 		v->e =  e_v;
 		e_v->next = e_v->prev = e_v;
@@ -101,15 +101,22 @@ static void add_edge(struct vertex* v, struct vertex* u){
 }
 
 // quadratic, but can be improved to nlogn
-static struct graph* read_graph(){
+static struct graph* read_graph(char *data){
+
+	// first line is the number of vertices
+	// second line is list of degrees of each vertex
+	// subsequent lines (starting from i=0)
+  	// are the vertices that vertex i is adjacent to
+
 	int i, j, u;
 	struct graph* g = (struct graph*) malloc(sizeof(struct graph));
 	struct vertex* v1;
 	struct vertex* v2;
-	struct edge* e;	
-	
-	scanf("%d",&g->n);
-	
+	struct edge* e;
+
+	FILE* ptr = fopen(data,"r");
+	fscanf(ptr,"%d",&g->n);
+
 	v1 = (struct vertex*) malloc(sizeof(struct vertex));
 	if(v1 == NULL){
 		strcpy(error_msg, "Memory error: not enough space for new vertex in function read_graph\n");
@@ -132,23 +139,23 @@ static struct graph* read_graph(){
 	}
 	v2->next = g->vert;
 	g->vert->prev = v2;
-	
+
 	v1 = g->vert;
 	for(i = 1; i <= g->n; i++){
 		v1->e = NULL;
-		scanf("%d", &v1->deg);
+		fscanf(ptr, "%d", &v1->deg);
 		if(v1->deg < 0){
 			strcpy(error_msg, "Invalid degree, must be >= 0\n");
 			error();
 			return NULL;
-		}	
+		}
 		v1 = v1->next;
 	}
-	
+
 	v1 = g->vert;
 	for(i = 1; i <= g->n; i++){
 		for(j = 0; j < v1->deg; j++){
-			scanf("%d",&u);
+			fscanf(ptr,"%d",&u);
 			if(u <= 0 && u > g->n){
 				strcpy(error_msg, "Invalid vertex, must be between 1 and n\n");
 				error();
@@ -175,7 +182,7 @@ static void print_dfs(struct vertex* v, bool* visited){
 	int i;
 	struct edge* e = v->e;
 	visited[v->num]	= true;
-	printf("vertex %d : ");
+	printf("vertex %d : ", v->num);
 	for(i = 1; i <= v->deg; i++){
 		printf("%d ",e->rev->v->num);
 		e = e->next;
@@ -200,7 +207,11 @@ static void print_graph(struct graph* g){
 
 int main(){
 	struct graph* g;
-	g = read_graph();
+
+	char data[256];
+	printf("Enter file name including extension: \n");
+	scanf("%s", data);
+	g = read_graph(data);
 	print_graph(g);
 	return 0;
 }
