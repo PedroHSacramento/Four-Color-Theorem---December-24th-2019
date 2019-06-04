@@ -5,6 +5,7 @@
 
 bool ERROR = false;
 char error_msg[100];
+int memory_in_use = 0;
 
 struct edge {
 	struct vertex* v;		// vertex the edge is connected to
@@ -28,6 +29,23 @@ struct graph {
 	struct vertex* vert;	/* pointer to the first vertex */
 };
 
+// debug function
+void* my_malloc(size_t size){
+    void* p = malloc(size);
+    memory_in_use++;
+    return p;
+}
+// debug function
+void my_free(void* size){
+    free(size);
+    memory_in_use--;
+}
+
+// debug defines
+#define malloc(X) my_malloc(X)
+#define free(X) my_free(X)
+#define debug printf
+
 // prints error messages
 static void error(){
 	ERROR = true;
@@ -38,7 +56,6 @@ static void error(){
 static struct edge* find_edge(struct vertex* v, struct vertex* u){
 	struct edge* e = v->e;
 	int i;
-
 	if(e == NULL){
 		strcpy(error_msg, "Invalid function input in find_edge: e == NULL \n");
 		error();
@@ -100,23 +117,20 @@ static void add_edge(struct vertex* v, struct vertex* u){
 	}
 }
 
-// quadratic, but can be improved to nlogn
+// quadratic, but can be improved to nlogn if necessary
 static struct graph* read_graph(char *data){
-
 	// first line is the number of vertices
 	// second line is list of degrees of each vertex
 	// subsequent lines (starting from i=0)
   	// are the vertices that vertex i is adjacent to
-
 	int i, j, u;
 	struct graph* g = (struct graph*) malloc(sizeof(struct graph));
 	struct vertex* v1;
 	struct vertex* v2;
 	struct edge* e;
-
 	FILE* ptr = fopen(data,"r");
+	
 	fscanf(ptr,"%d",&g->n);
-
 	v1 = (struct vertex*) malloc(sizeof(struct vertex));
 	if(v1 == NULL){
 		strcpy(error_msg, "Memory error: not enough space for new vertex in function read_graph\n");
@@ -169,14 +183,34 @@ static struct graph* read_graph(char *data){
 		}
 		v1 = v1->next;
 	}
+	fclose(ptr);
 	return g;
 }
 
-// Implement
+// frees the whole graph
 static void free_graph(struct graph* g){
-	// free g->vert - sizeof(vertex)
+	struct vertex* v = g->vert;
+	struct edge* e;
+	int i,j;
+	// frees the edges
+	for(i = 0; i < g->n; i++){
+		e =  v->e;
+		for(j = 1; j < v->deg; j++){
+			free(e->prev);
+		}
+		free(e);
+		v = v->next;
+	}
+	// frees the vertices
+	for(i = 1; i < g->n; i++){
+		free(v->prev);
+	}
+	free(v);
+	// frees the graph
+	free(g);
 }
 
+// debug function
 // assumes graph is correct
 static void print_dfs(struct vertex* v, bool* visited){
 	int i;
@@ -196,6 +230,7 @@ static void print_dfs(struct vertex* v, bool* visited){
 	}
 }
 
+// debug function
 // assumes graph from 1 to n
 static void print_graph(struct graph* g){
 	int i;
@@ -207,11 +242,12 @@ static void print_graph(struct graph* g){
 
 int main(){
 	struct graph* g;
-
 	char data[256];
 	printf("Enter file name including extension: \n");
 	scanf("%s", data);
 	g = read_graph(data);
 	print_graph(g);
+	free_graph(g);
+	printf("Leaking memory: %d\n",memory_in_use);
 	return 0;
 }
