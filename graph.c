@@ -211,7 +211,8 @@ static struct graph* read_graph(char *data){
 	return g;
 }
 
-// For debugging: read a graph with a fixed tri coloring
+// debug function
+// read a graph with a fixed tri coloring
 static struct graph* read_graph_colored(char *data){
 
 	// first line is the number of vertices
@@ -284,7 +285,7 @@ static struct graph* read_graph_colored(char *data){
 	return g;
 }
 
-// frees the whole graph // buggy
+// frees the whole graph
 static void free_graph(struct graph* g){
 	struct vertex* v = g->vert;
 	struct edge* e;
@@ -293,19 +294,18 @@ static void free_graph(struct graph* g){
 	for(i = 0; i < g->n; i++){
 		e =  v->e;
 		for(j = 1; j < v->deg; j++){
-			debug("free edge %d %d\n",e->prev->v->num,e->prev->rev->v->num);
-			free(e->prev);
 			e = e->next;
+			free(e->prev);
 		}
 		free(e);
 		v = v->next;
 	}
 	// frees the vertices
 	for(i = 1; i < g->n; i++){
-//		free(v->prev);
 		v = v->next;
+		free(v->prev);
 	}
-//	free(v);
+	free(v);
 	// frees the graph
 	free(g);
 }
@@ -349,7 +349,7 @@ int main(){
 	//g = read_graph_colored(data); // for debugging
 	print_graph(g);
 	//color_vertices(g); // final step
-	//free_graph(g); // currently buggy
-	//printf("Leaking memory: %d\n",memory_in_use);
+	free_graph(g);
+	printf("Leaking memory: %d\n",memory_in_use);
 	return 0;
 }
