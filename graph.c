@@ -3,7 +3,9 @@
 #include <string.h>
 #include <stdbool.h>
 
-#define NUM_RULES 67
+#define NUM_RULES      67
+#define MAX_CONF_SIZE  26
+#define NUM_CONF      633
 
 #define swap(x,y) do \
    { unsigned char swap_temp[sizeof(x) == sizeof(y) ? (signed)sizeof(x) : -1]; \
@@ -90,7 +92,7 @@ int rule_vertices[][10] = {
 /* 67 */ { 0,  1,  3,  2,  5,  4,  7, 14, 17, 12}
 };
 int min_deg[][20] = {
-//	       0   1   2   3   4  -1   6   7   8   9  10  11  12  13  14  15  16  17  18  19
+//         0   1   2   3   4  -1   6   7   8   9  10  11  12  13  14  15  16  17  18  19
 /* 01 */ { 5,  5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 /* 02 */ { 5,  5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 /* 03 */ { 5,  7, -1,  5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
@@ -113,7 +115,7 @@ int min_deg[][20] = {
 /* 20 */ { 7,  7,  5, -1,  5, -1, -1, -1, -1, -1, -1, -1,  5, -1, -1, -1, -1, -1, -1, -1},
 /* 21 */ { 7,  7,  5,  5,  5,  5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 /* 22 */ { 7,  7,  5,  5,  5,  6, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
-//	       0   1   2   3   4  -1   6   7   8   9  10  11  12  13  14  15  16  17  18  19
+//         0   1   2   3   4  -1   6   7   8   9  10  11  12  13  14  15  16  17  18  19
 /* 23 */ { 7,  7,  5,  5,  6,  5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 /* 24 */ { 7,  7,  5,  5,  6,  6, -1, -1,  5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 /* 25 */ { 7,  7,  5,  5,  6,  6, -1, -1, -1,  5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
@@ -137,7 +139,7 @@ int min_deg[][20] = {
 /* 43 */ { 7,  7,  6,  6,  5, -1,  5, -1, -1, -1, -1, -1,  5,  5, -1, -1, -1, -1, -1, -1},
 /* 44 */ { 7,  7,  6,  6, -1,  5, -1,  5, -1, -1, -1, -1, -1, -1,  5, -1, -1,  5, -1, -1},
 /* 45 */ { 7,  7,  6,  6,  5, -1,  5, -1, -1, -1, -1, -1,  6,  5, -1, -1, -1, -1, -1, -1},
-//	       0   1   2   3   4  -1   6   7   8   9  10  11  12  13  14  15  16  17  18  19
+//         0   1   2   3   4  -1   6   7   8   9  10  11  12  13  14  15  16  17  18  19
 /* 46 */ { 7,  7,  6,  6, -1,  5, -1,  5, -1, -1, -1, -1, -1, -1,  6, -1, -1,  5, -1, -1},
 /* 47 */ { 7,  7,  5,  7, -1,  5, -1, -1, -1,  5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 /* 48 */ { 7,  7,  7,  5,  5, -1, -1, -1,  5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
@@ -162,7 +164,7 @@ int min_deg[][20] = {
 /* 67 */ { 8,  7,  7,  6,  6,  5, -1,  5, -1, -1, -1, -1,  5, -1,  5, -1, -1,  5, -1, -1}
 };
 int max_deg[][20] = {
-//	       0   1   2   3   4  -1   6   7   8   9  10  11  12  13  14  15  16  17  18  19
+//         0   1   2   3   4  -1   6   7   8   9  10  11  12  13  14  15  16  17  18  19
 /* 01 */ { 5, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 /* 02 */ { 5, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 /* 03 */ { 6, 12, -1,  5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
@@ -185,7 +187,7 @@ int max_deg[][20] = {
 /* 20 */ { 7, 12,  6, -1,  6, -1, -1, -1, -1, -1, -1, -1,  5, -1, -1, -1, -1, -1, -1, -1},
 /* 21 */ { 7, 12,  5,  5,  5,  5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 /* 22 */ { 7, 12,  5,  5,  5, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
-//	       0   1   2   3   4  -1   6   7   8   9  10  11  12  13  14  15  16  17  18  19
+//         0   1   2   3   4  -1   6   7   8   9  10  11  12  13  14  15  16  17  18  19
 /* 23 */ { 7, 12,  5,  5, 12,  5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 /* 24 */ { 7, 12,  5,  5,  6, 12, -1, -1,  5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 /* 25 */ { 7, 12,  5,  5, 12,  6, -1, -1, -1,  5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
@@ -209,7 +211,7 @@ int max_deg[][20] = {
 /* 43 */ { 7,  7,  6, 12,  6, -1,  5, -1, -1, -1, -1, -1,  5,  5, -1, -1, -1, -1, -1, -1},
 /* 44 */ { 7,  7, 12,  6, -1,  6, -1,  5, -1, -1, -1, -1, -1, -1,  5, -1, -1,  5, -1, -1},
 /* 45 */ { 7,  7,  6, 12,  5, -1,  5, -1, -1, -1, -1, -1,  6,  5, -1, -1, -1, -1, -1, -1},
-//	       0   1   2   3   4  -1   6   7   8   9  10  11  12  13  14  15  16  17  18  19
+//         0   1   2   3   4  -1   6   7   8   9  10  11  12  13  14  15  16  17  18  19
 /* 46 */ { 7,  7, 12,  6, -1,  5, -1,  5, -1, -1, -1, -1, -1, -1,  6, -1, -1,  5, -1, -1},
 /* 47 */ { 7, 12,  5,  7, -1,  5, -1, -1, -1,  5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 /* 48 */ { 7, 12,  7,  5,  5, -1, -1, -1,  5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
@@ -250,13 +252,24 @@ struct vertex {
 	struct edge* e;			/* pointer to the first edge */
 	struct vertex *next;
 	struct vertex *prev;
-};
+} *map[MAX_CONF_SIZE + 1];
 
 struct graph {
 	char name[100];
 	int n;					/* number of vertices */
 	struct vertex* vert;	/* pointer to the first vertex */
 };
+
+struct configuration {
+	char N[100];	// a character string identifying the configuration;
+	int n;			// n is the number of vertices of the free completion;
+	int r;			// r is the ring-size;
+	int a;			// a is the cardinality of C ; and
+	int b;			// b is the cardinality of C' (see discussion before (3.2) in the paper);
+    int x;
+    struct edge* X[4];
+	struct graph g;
+} conf[633];
 
 void reinsert_to_edge_list(struct edge*);
 void contract_edge(struct graph*, struct edge*);
@@ -280,6 +293,7 @@ void add_to_vertex_list(struct graph*, struct vertex*);
 void degree_three_elimination(struct graph*, struct vertex*);
 void find_coloring(struct graph*);
 void check_graph(struct graph*);
+void set_visited_false(struct graph*);
 
 // debug function
 void* my_malloc(size_t size){
@@ -299,6 +313,7 @@ void my_free(void* size){
 #define free(X) my_free(X)
 #define debug printf
 
+// adds an edge removed from an edge_list back to the edge list
 void reinsert_to_edge_list(struct edge* e){
 	if(e == NULL){
 		printf("Trying to add a NULL edge in reinsert_to_edge_list\n");
@@ -310,11 +325,13 @@ void reinsert_to_edge_list(struct edge* e){
 	e->v->deg++;
 }
 
+// contracts an edge from a graph
 void contract_edge(struct graph* g, struct edge * e){
 	struct vertex* v1 = e->v;
 	struct vertex* v2 = e->rev->v;
 	struct vertex* vnew = (struct vertex*) malloc(sizeof(struct vertex));
 	int i;
+	
 	// 1. remove edges: e, e->rev, e->next, e->next->rev, e->rev->next, e->rev->next->rev
 	remove_from_edge_list(e);
 	remove_from_edge_list(e->rev);
@@ -338,18 +355,21 @@ void contract_edge(struct graph* g, struct edge * e){
 	}
 	vnew->e=e;
 	// 4. Some bookkeeping
-	vnew->num = ++num_label;
+	vnew->num = num_label;
+	num_label++;
 	vnew->deg = v1->deg + v2->deg;
 	add_to_vertex_list(g,vnew);
 	remove_from_vertex_list(g,v1);
 	remove_from_vertex_list(g,v2);
 }
 
+// given a contracted edge and the graph it belongs, decontracts the edge
 void decontract_edge(struct graph* g, struct edge * e){
 	struct vertex* v1 = e->v;
 	struct vertex* v2 = e->rev->v;
 	struct vertex* v_old = e->prev->v;
 	int i;
+	
 	// 1. reinsert edges: e->rev->next->rev, e->rev->next, e->next->rev, e->next, e->rev, e
 	reinsert_to_edge_list(e->rev->next->rev);
 	reinsert_to_edge_list(e->rev->next);
@@ -363,7 +383,6 @@ void decontract_edge(struct graph* g, struct edge * e){
 		e = e->next;
 	}
 	e = e->rev;
-	printf("%d \n", v1->deg);
 
 	for (i = 0; i < v2->deg; i++) {
 		e->v=v2;
@@ -373,10 +392,8 @@ void decontract_edge(struct graph* g, struct edge * e){
 	remove_from_vertex_list(g,v_old);
 	add_to_vertex_list(g,v1);
 	add_to_vertex_list(g,v2);
-	struct vertex* v3 = g->vert;
-	struct edge* edge1 = v_old->e;
+	free(v_old);
 }
-
 
 // DFS to color the vertices
 // Assumes vertices numbered 1 to n
@@ -421,6 +438,7 @@ struct edge* find_edge(struct vertex* v, struct vertex* u){
 }
 
 // adds edge between v and u to the end of the list of edges of v, creates it if it doesn't exist
+// DOES NOT change the degree of v and u
 void add_edge(struct vertex* v, struct vertex* u){
 	struct edge* e_v;
 	struct edge* e_u;
@@ -637,7 +655,7 @@ void print_dfs(struct vertex* v){
 	int i;
 	struct edge* e = v->e;
 	v->visited = true;
-	printf("vertex %d : ", v->num);
+	printf("vertex %d, deg %d : ", v->num, v->deg);
 	for(i = 1; i <= v->deg; i++){
 		printf("%d ",e->rev->v->num);
 		e = e->next;
@@ -658,17 +676,11 @@ void print_graph(struct graph* g){
 	struct vertex* v = g->vert;
 	struct edge* e;
 	
-	printf("Vertex list: ");
-	for(i = 0; i < g->n; i++){
-		printf("%d ",v->num);
-		v->visited = false;
-		v = v->next;
-	}
-	printf("\n");
 	printf("Edges colors\n");
 	v = g->vert;
 	for(i = 0; i < g->n; i++){
 		e = v->e;
+		printf("Vertex %d, deg %d\n",v->num, v->deg);
 		for(j = 0; j < v->deg; j++){
 			printf("Edge %d %d, color %d\n",e->v->num,e->rev->v->num,e->color);
 			e = e->next;
@@ -676,6 +688,7 @@ void print_graph(struct graph* g){
 		v = v->next;
 	}
 	printf("\n");
+	set_visited_false(g);
 	print_dfs(g->vert);
 }
 
@@ -802,15 +815,15 @@ void set_visited_false(struct graph* g){
 	}
 }
 
-// dfs to separate the vertex lists of the inside ad outside graphs when you have parallel edges
-void parallel_edges_dfs(struct vertex* v, struct graph* g1, struct graph* g2){
+// dfs to separate the vertex lists of the inside and outside graphs of a cycle with visited = true, remove from g1 and add to g2
+void graph_separating_dfs(struct vertex* v, struct graph* g1, struct graph* g2){
 	struct edge* e = v->e;
 	int i;
 	v->visited = true;
 	remove_from_vertex_list(g1, v);
 	add_to_vertex_list(g2, v);
 	for(i = 0; i < v->deg; i++){
-		if(e->rev->v->visited == false) parallel_edges_dfs(e->rev->v, g1, g2);
+		if(e->rev->v->visited == false) graph_separating_dfs(e->rev->v, g1, g2);
 	}
 }
 
@@ -822,12 +835,14 @@ void color_change_dfs(struct vertex* v, int color_xor){
 	for(i = 0; i < v->deg; i++){
 		if(e->rev->v->visited == false) color_change_dfs(e->rev->v, color_xor);
 		if(e->color != color_xor) e->color ^= color_xor;
+		e = e->next;
 	}
 }
 
 // changes the colors in a graph
 void color_change(struct graph* g, int color1, int color2){
 	set_visited_false(g);
+	debug("***Changing color %d to %d***\n");
 	color_change_dfs(g->vert, color1 ^ color2);
 }
 
@@ -862,33 +877,58 @@ void parallel_edges_coloring(struct graph* g1, struct edge* e1, struct edge* e2)
 		return;	
 	}
 	
+	g2->vert = NULL;
+	g2->n = 0;
+	
 	// create 2 new vertices and separate G_inside and G_outside
 	
-	v1_copy->num = ++num_label;
-	v2_copy->num = ++num_label;
+	v1_copy->num = num_label++;
+	v2_copy->num = num_label++;
+	v1_copy->deg = 0;
+	v2_copy->deg = 0;
 	v1_copy->e = e1;
 	v2_copy->e = e1->rev;
 	v1->e = e2->rev;
 	v2->e = e2;
+	
 	add_to_vertex_list(g2, v1_copy);
 	add_to_vertex_list(g2, v2_copy);
 	
 	set_visited_false(g1);
 	v1->visited = true;
 	v2->visited = true;
-	e = e1;
+
+	// organizes the vertices and edges inside the loop 
+	e = e1->next;	
 	while(e != e2->rev){
-		if(e->rev->v->visited = false){
-			parallel_edges_dfs(e->rev->v, g1, g2);
+		if(e->rev->v->visited == false){
+			graph_separating_dfs(e->rev->v, g1, g2);
 		}
 		e->v = v1_copy;
 		e = e->next;
+		v1->deg--;
+		v1_copy->deg++;
 	}
-	e = e1->rev;
+	e = e1->rev->prev;
 	while(e != e2){
+		if(e->rev->v->visited == false){
+			graph_separating_dfs(e->rev->v, g1, g2);
+		}
 		e->v = v2_copy;
+		v2->deg--;
+		v2_copy->deg++;
 		e = e->prev;
 	}
+	
+	e1->v->deg--;
+	e1->rev->v->deg--;
+	
+	e1->rev->v = v2_copy;
+	e1->v = v1_copy;
+	
+	v1_copy->deg++;
+	v2_copy->deg++;
+	
 	
 	e1->prev->next = e2->rev;
 	e2->rev->prev->next = e1;
@@ -896,6 +936,12 @@ void parallel_edges_coloring(struct graph* g1, struct edge* e1, struct edge* e2)
 	e1->prev = e2->rev->prev;
 	e2->rev->prev = e;
 	
+	e2->next->prev = e1->rev;
+	e1->rev->next->prev = e2;
+	e = e2->next;
+	e2->next = e1->rev->next;
+	e1->rev->next = e;
+
 	// G1 = e1 + G_inside
 	// G2 = e2 + G_outside
 	
@@ -904,10 +950,13 @@ void parallel_edges_coloring(struct graph* g1, struct edge* e1, struct edge* e2)
 	
 	
 	// merge colorings
-	
 	if(e1->color != e2->color){
-		if(g1->n <= g2->n) color_change(g1, e1->color, e2->color);
-		else color_change(g2, e2->color, e1->color);
+		if(g1->n <= g2->n){
+			color_change(g1, e1->color, e2->color);
+		}
+		else{
+			color_change(g2, e2->color, e1->color);
+		}
 	}
 	
 	// undo the changes
@@ -917,15 +966,23 @@ void parallel_edges_coloring(struct graph* g1, struct edge* e1, struct edge* e2)
 	e1->prev = e2->rev->prev;
 	e2->rev->prev = e;
 	
+	e2->next->prev = e1->rev;
+	e1->rev->next->prev = e2;
+	e = e2->next;
+	e2->next = e1->rev->next;
+	e1->rev->next = e;
+	
 	e = e1->rev;
 	while(e != e2){
 		e->v = v2;
 		e = e->prev;
+		v2->deg++;
 	}
 	e = e1;
 	while(e != e2->rev){
 		e->v = v1;
 		e = e->next;
+		v1->deg++;
 	}
 	
 	v = g2->vert;
@@ -933,6 +990,9 @@ void parallel_edges_coloring(struct graph* g1, struct edge* e1, struct edge* e2)
 		remove_from_vertex_list(g2, v);
 		add_to_vertex_list(g1, v);
 	}
+	free(v1_copy);
+	free(v2_copy);
+	free(g2);
 }
 
 // removes an edge e from the list of edges of e->v
@@ -983,6 +1043,7 @@ void add_to_vertex_list(struct graph* g, struct vertex* v){
 		ERROR = true;
 		return;
 	}
+	
 	g->n++;
 	if(g->vert == NULL){
 		g->vert = v;
@@ -1072,7 +1133,59 @@ void degree_three_elimination(struct graph* g, struct vertex* head){
 	// add the head back to the list of vertices of g
 	add_to_vertex_list(g, head);
 }
+
+// dfs to check graph isomorphism
+bool iso_dfs(int r, struct vertex* vg, struct vertex* vc){
+	struct edge* eg;
+	struct edge* ec;
+	int i;
 	
+	map[vc->num] = vg;
+	eg = vg->e;
+	ec = vc->e;
+	if(vc->num <= r) return true;
+	if(vg->deg != vc->deg) return false;
+	for(i = 0; i < vg->deg; i++){
+		if(ec->rev->v->visited == false){
+			ec->rev->v->e = ec->rev;
+			eg->rev->v->e = eg->rev;
+			if( ! iso_dfs(r, eg->rev->v, ec->rev->v) ) return false;
+		}
+	}
+	return true;
+}
+
+// given a hub finds a configuration in its cartwheel
+int find_configuration(struct vertex* hub){
+	int i, j, k;
+	struct edge* e1;
+	struct edge* e2;
+	struct vertex* v;
+	
+	for(i = 0; i < NUM_CONF; i++){
+		v = conf[i].g.vert;
+		for(j = conf[i].r + 1; j <= conf[i].n; j++){
+			if(hub->deg != v->deg){
+				v = v->next;
+				continue;
+			}
+			e1 = hub->e;
+			e2 = v->e;
+			for(k = 0; k < hub->deg; k++){
+				hub->e = e1;
+				v->e = e2;
+				set_visited_false(&conf[i].g);
+				if( iso_dfs(conf[i].r, hub, v) ) return i;
+				e2 = e2->next;	
+			}
+			v = v->next;
+		}
+	}
+	printf("Error: find_configuration couldn't find a configuration with hub %d\n",hub->num);
+	ERROR = true;
+	return -1;
+}
+
 // IMPLEMENT
 // main coloring function
 void find_coloring(struct graph* g){
@@ -1081,6 +1194,7 @@ void find_coloring(struct graph* g){
 	struct edge* e1;
 	struct edge* e2;
 	int i, j, k;
+	int conf_num;
 	
 	// if the graph is small we are at a base case
 	if(g->n <= 3){
@@ -1113,6 +1227,7 @@ void find_coloring(struct graph* g){
 			e1->rev->v->visited = false;
 			e1 = e1->next;
 		}
+		v = v->next;
 	}
 	
 	// if the graph is small we are at a base case, now with no parallel edges
@@ -1145,19 +1260,16 @@ void find_coloring(struct graph* g){
 	
 	// no simple reduction, search for a hub 
 	hub = find_hub(g);
+	if(ERROR) return;
+	
+	conf_num = find_configuration(hub);
+	if(ERROR) return;
+	
 	// look for a short circuit in the cartweel of hub
-	/*
-	if( found_short_circuit ){
-		// run SCS for the short circuit
-		return;
-	}
-	*/
-	// else, we must look for a configuration
 	// contract the configuration
 	// call find_coloring recursively
 	// undo contraction and extend coloring
 	
-	// add the vertices of degree <= 3 back
 }
 
 // debug function
@@ -1247,13 +1359,126 @@ void check_graph(struct graph* g){
 	if(!ERROR) debug("Graph ok\n");
 }
 
+// reads list of configurations from text file according to the structure defined above
+void read_conf(char* data){
+	// 1. N a character string identifying the configuration;
+	// 2. n is the number of vertices of the free completion;
+	// 3. r is the ring-size;
+	// 4. a is the cardinality of C ; and
+	// 5. b is the cardinality of C' (see discussion before (3.2) in the paper);
+	// 6. k [2*k integers]; k is the number of edges in X, each edge being represented as a pair of integers;
+	// 7. the adjacency list of the free completion in a standard form (the second column contains the degrees in the free completion);
+	// 8. (ignored) coordinates of vertices of the free completion; 
+	// the i-th entry in the coordinate list is 1024 x + y where [x,y] are the coordinates of vertex i, (0 < = x,y < 1024) .
+
+	char N[100];
+	int i, j, k, u, skip;
+    int X_edges[8];
+	struct vertex* v1;
+	struct vertex* v2;
+	struct edge* e;
+	FILE* ptr = fopen(data,"r");
+
+	for (i = 0; i < 633; i++) {
+		fscanf(ptr,"%s",conf[i].N);
+		fscanf(ptr,"%d",&conf[i].n);
+		fscanf(ptr,"%d",&conf[i].r);
+		fscanf(ptr,"%d",&conf[i].a);
+		fscanf(ptr,"%d",&conf[i].b);
+        fscanf(ptr,"%d",&conf[i].x);
+        
+		conf[i].g.vert = NULL;
+		conf[i].g.n = 0;
+
+		// create the vertices
+		for(j = 1; j <= conf[i].n; j++){
+			v1 = (struct vertex*) malloc(sizeof(struct vertex));
+			if(v1 == NULL){
+				printf("read_conf: Memory error: not enough space for new vertex in function read_graph\n");
+				ERROR = true;
+				return;
+			}
+			v1->num = j;
+			add_to_vertex_list(&conf[i].g, v1);
+			v1->e = NULL;
+		}
+		v1 = conf[i].g.vert;
+        // store the vertices in X: make the edges after graph constructed below
+        for(j = 0; j < conf[i].x; j++) {
+            int a;
+            int b;
+            fscanf(ptr, "%d", &X_edges[2*j]);
+            fscanf(ptr, "%d", &X_edges[2*j+1]);
+            if(X_edges[2*j] > conf[i].n | X_edges[2*j+1] > conf[i].n){
+                printf("read_conf: Invalid vertex in X has number higher than n \n");
+                ERROR = true;
+                return;
+            }
+        }
+        // create the graph from adjacency list (similar to read_graph)
+		for(j = 1; j <= conf[i].n; j++){
+			v1->e = NULL;
+			fscanf(ptr,"%d",&skip);
+			fscanf(ptr, "%d", &v1->deg);
+			if(v1->deg < 0){
+				printf("Invalid degree, must be >= 0\n");
+				ERROR = true;
+				return;
+			}
+            // for each vertex store its neighbors
+			for(k = 0; k < v1->deg; k++){
+				fscanf(ptr,"%d",&u);
+				if(u <= 0 && u > conf[i].g.n){
+					printf("Invalid vertex, must be between 1 and n\n");
+					ERROR = true;
+					return;
+				}
+				v2 = v1->next;
+				while(v2->num != u){
+					v2 = v2->next;
+				}
+				add_edge(v1, v2);
+			}
+			v1 = v1->next;
+		}
+        // store the edges to conf.X by going through vertices and finding them
+        for (j = 0; j < conf[i].x; j++) {
+            // find the first vertex
+            v1 = conf[i].g.vert;
+            while(v1->num != X_edges[2*j]){
+                v1 = v1->next;
+            }
+            e = v1->e;
+            while(e->rev->v->num != X_edges[2*j+1]) {
+                e = e->next;
+            }
+            conf[i].X[j] = e;
+        }
+		for (j = 0; j < conf[i].g.n; j++) {
+			fscanf(ptr,"%d",&skip);;
+		}
+	}
+	fclose(ptr);
+}
+
 int main(){
 	struct graph* g;
 	char data[256];
-	printf("Enter file name including extension: \n");
+	
+	read_conf("configurations.txt");
+	
+//	printf("Enter file name including extension: \n");
 //	scanf("%s", data);
-	g = read_graph("data2.txt");
-	check_graph(g);
+	g = read_graph("data4.txt");
+/*
+	struct vertex *v1, *v2;
+	v1 = g->vert;
+	v2 = v1->next;
+	printf("%d %d\n",v1->num, v2->num);
+	contract_edge( g, find_edge(v1, v2) );
+	print_graph(g);
+*/	
+	
 	find_coloring(g);
 	print_graph(g);
 	color_vertices(g);
