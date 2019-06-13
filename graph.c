@@ -694,7 +694,7 @@ void print_graph(struct graph* g){
 
 // applies the rules to odify the weight function
 void apply_rules(struct edge* e){
-	struct vertex* v[17];
+	struct vertex* v[20];
 	int cur;
 	int i, j;
 	bool works;
@@ -827,23 +827,19 @@ void graph_separating_dfs(struct vertex* v, struct graph* g1, struct graph* g2){
 	}
 }
 
-// dfs to change colors in a graph
-void color_change_dfs(struct vertex* v, int color_xor){
-	struct edge* e = v->e;
-	int i;
-	v->visited = true;
-	for(i = 0; i < v->deg; i++){
-		if(e->rev->v->visited == false) color_change_dfs(e->rev->v, color_xor);
-		if(e->color != color_xor) e->color ^= color_xor;
-		e = e->next;
-	}
-}
-
 // changes the colors in a graph
-void color_change(struct graph* g, int color1, int color2){
-	set_visited_false(g);
-	debug("***Changing color %d to %d***\n");
-	color_change_dfs(g->vert, color1 ^ color2);
+void color_change(struct graph* g, int perm[4]){
+	struct vertex* v = g->vert;
+	struct edge* e;
+	int i, j;
+	for(i = 0; i < g->n; i++){
+		e = v->e;
+		for(j = 0; j < v->deg; j++){
+			e->color = perm[ e->color ];
+			e = e->next;
+		}
+		v = v->next;
+	}
 }
 
 // subcase of the short circuit subroutine, colors the graph recursively if it has e1 and e2 as parallel edges
@@ -855,6 +851,7 @@ void parallel_edges_coloring(struct graph* g1, struct edge* e1, struct edge* e2)
 	struct vertex* v1_copy = (struct vertex*) malloc(sizeof(struct vertex));;
 	struct vertex* v2_copy = (struct vertex*) malloc(sizeof(struct vertex));;
 	struct graph* g2 = (struct graph*) malloc(sizeof(struct graph));
+	int perm[4];
 	
 	if(v1_copy == NULL || v2_copy == NULL){
 		printf("Not enough space for a new vertex in parallel_edges_coloring\n");
@@ -951,12 +948,11 @@ void parallel_edges_coloring(struct graph* g1, struct edge* e1, struct edge* e2)
 	
 	// merge colorings
 	if(e1->color != e2->color){
-		if(g1->n <= g2->n){
-			color_change(g1, e1->color, e2->color);
-		}
-		else{
-			color_change(g2, e2->color, e1->color);
-		}
+		perm[e1->color ^ e2->color] = e1->color ^ e2->color;
+		perm[e1->color] = e2->color;
+		perm[e2->color] = e1->color;
+		if(g1->n <= g2->n) color_change(g1, perm);
+		else color_change(g2, perm);
 	}
 	
 	// undo the changes
@@ -1054,6 +1050,152 @@ void add_to_vertex_list(struct graph* g, struct vertex* v){
 	v->prev = g->vert->prev;
 	g->vert->prev = v;
 	v->next = g->vert;
+}
+
+// puts back edges of v2 into edges of v1
+// assumes first edge to be added is v2->e->next, CW of v1->e;
+void fuse_vertex(struct vertex* v1, struct vertex* v2){
+    struct edge* e1 = v1->e;
+    struct edge* e1_end = e1->next;
+    struct edge* e2 = v2->e->next;
+    v1->deg += v2->deg-2;
+    e1->next = e2;
+    e2->prev = e1;
+    // change source vertex
+    while(e2->next != v2->e) {
+        e2->v = v1;
+        e2 = e2->next;
+    }
+    e2->prev->next = e1_end;
+    e1_end->prev = e2->prev;
+}
+
+// short circuit subroutine for circuit size 3
+// cw for g2
+// split the graph into two graphs, and run find_coloring on both
+// creates a new circuit for one of the graphs, the other uses original.
+// ei are the edges of the short circuit, in cw orientation
+struct graph* scs_3(struct graph* g1,struct edge* e1,struct edge* e2,struct edge* e3){
+    int i;
+    struct graph* g2;
+    struct edge* e;
+    // 1. create new vertices
+    struct vertex * vnew_1 = (struct vertex*) malloc(sizeof(struct vertex));
+    struct vertex * vnew_2 = (struct vertex*) malloc(sizeof(struct vertex));
+    struct vertex * vnew_3 = (struct vertex*) malloc(sizeof(struct vertex));
+    vnew_1->num = e1->v->num;
+    vnew_2->num = e2->v->num;
+    vnew_3->num = e3->v->num;
+
+	// 2. create new edges
+    add_edge(vnew_1, vnew_2);
+    vnew_1->deg++;
+    add_edge(vnew_1, vnew_3);
+    vnew_1->deg++;
+    add_edge(vnew_2, vnew_1);
+    vnew_2->deg++;
+    add_edge(vnew_2, vnew_3);
+    vnew_2->deg++;
+    add_edge(vnew_3, vnew_2);
+    vnew_3->deg++;
+    add_edge(vnew_3, vnew_1);
+    vnew_3->deg++;
+	// let v->e match with vnew->e, CW order assumed
+	vnew_1->e = find_edge(vnew_1,vnew_2);
+	vnew_2->e = find_edge(vnew_2,vnew_3);
+	vnew_3->e = find_edge(vnew_3,vnew_1);
+    e1->v->e = e1;
+    e2->v->e = e2;
+    e3->v->e = e3;
+
+	// 3. create the new graph and change the vertex list
+	g2 = (struct graph*) malloc(sizeof(struct graph));
+	e1->v->visited = true;
+	e2->v->visited = true;
+	e3->v->visited = true;
+	struct vertex * v_interior = e1->next->rev->v; // assumed that there is an interior vertex
+	g2->n = 0;
+	g2->vert = NULL;
+	graph_separating_dfs(v_interior,g1,g2);
+
+	// 4. remap interior edges to new edges and vertices
+	e = e1->next;
+	e->prev = vnew_1->e;
+	vnew_1->e->next = e;
+	while (e!=e3->rev) {
+		e->v = vnew_1;
+		vnew_1->deg++;
+		e = e->next;
+	}
+	vnew_1->e->prev->prev = e->prev; // connect outer parts
+	e->prev->next = vnew_1->e->prev;
+
+	// vnew_2
+	e = e2->next;
+	e->prev = vnew_2->e;
+	vnew_2->e->next = e;
+	while (e!=e1->rev) {
+		e->v = vnew_2;
+		vnew_2->deg++;
+		e = e->next;
+	}
+	vnew_2->e->prev->prev = e->prev;
+	e->prev->next = vnew_2->e->prev;
+
+	// vnew_3
+	e = e3->next;
+	e->prev = vnew_3->e;
+	vnew_3->e->next = e;
+	while (e!=e2->rev) {
+		e->v = vnew_3;
+		vnew_3->deg++;
+		e = e->next;
+	}
+	vnew_3->e->prev->prev = e->prev;
+	e->prev->next = vnew_3->e->prev;
+
+	add_to_vertex_list(g2,vnew_1);
+	add_to_vertex_list(g2,vnew_2);
+	add_to_vertex_list(g2,vnew_3);
+
+	// 5. remap edges of g1 to not include vertices inside short circuit
+	e1->next = e3->rev;
+	e2->next = e1->rev;
+	e3->next = e2->rev;
+	e3->rev->prev = e1;
+	e2->rev->prev = e3;
+	e1->rev->prev = e2;
+	e1->v->deg -= vnew_1->deg - 2;
+	e2->v->deg -= vnew_2->deg - 2;
+	e3->v->deg -= vnew_3->deg - 2;
+
+    // 6. color the two divided graph
+	find_coloring(g1);
+	find_coloring(g2);
+
+    // 7. match the colorings
+    int perm[4];
+    perm[e1->color]=vnew_1->e->color;
+    perm[e2->color]=vnew_2->e->color;
+    perm[e3->color]=vnew_3->e->color;
+    color_change(g2, perm);
+
+    // 8. fuse the graphs back together
+    fuse_vertex(e1->v, vnew_1);
+    fuse_vertex(e2->v, vnew_2);
+    fuse_vertex(e3->v, vnew_3);
+
+    // change the vertex list of g1
+    remove_from_vertex_list(g2,vnew_1);
+    remove_from_vertex_list(g2,vnew_2);
+    remove_from_vertex_list(g2,vnew_3);
+    // combine the vertex lists
+    struct vertex* v_temp = g1->vert->next;
+    g1->vert->next = g2->vert->next;
+    g2->vert->next->prev = g1->vert;
+    g2->vert->next = v_temp;
+    v_temp->prev = g2->vert;
+    g1->n += g2->n;
 }
 
 // eliminates vertices of degree three
