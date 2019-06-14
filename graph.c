@@ -294,6 +294,7 @@ void degree_three_elimination(struct graph*, struct vertex*);
 void find_coloring(struct graph*);
 void check_graph(struct graph*);
 void set_visited_false(struct graph*);
+void scs_3(struct graph*, struct edge*, struct edge*, struct edge*);
 
 // debug function
 void* my_malloc(size_t size){
@@ -1070,134 +1071,6 @@ void fuse_vertex(struct vertex* v1, struct vertex* v2){
     e1_end->prev = e2->prev;
 }
 
-// short circuit subroutine for circuit size 3
-// cw for g2
-// split the graph into two graphs, and run find_coloring on both
-// creates a new circuit for one of the graphs, the other uses original.
-// ei are the edges of the short circuit, in cw orientation
-struct graph* scs_3(struct graph* g1,struct edge* e1,struct edge* e2,struct edge* e3){
-    int i;
-    struct graph* g2;
-    struct edge* e;
-    // 1. create new vertices
-    struct vertex * vnew_1 = (struct vertex*) malloc(sizeof(struct vertex));
-    struct vertex * vnew_2 = (struct vertex*) malloc(sizeof(struct vertex));
-    struct vertex * vnew_3 = (struct vertex*) malloc(sizeof(struct vertex));
-    vnew_1->num = e1->v->num;
-    vnew_2->num = e2->v->num;
-    vnew_3->num = e3->v->num;
-
-	// 2. create new edges
-    add_edge(vnew_1, vnew_2);
-    vnew_1->deg++;
-    add_edge(vnew_1, vnew_3);
-    vnew_1->deg++;
-    add_edge(vnew_2, vnew_1);
-    vnew_2->deg++;
-    add_edge(vnew_2, vnew_3);
-    vnew_2->deg++;
-    add_edge(vnew_3, vnew_2);
-    vnew_3->deg++;
-    add_edge(vnew_3, vnew_1);
-    vnew_3->deg++;
-	// let v->e match with vnew->e, CW order assumed
-	vnew_1->e = find_edge(vnew_1,vnew_2);
-	vnew_2->e = find_edge(vnew_2,vnew_3);
-	vnew_3->e = find_edge(vnew_3,vnew_1);
-    e1->v->e = e1;
-    e2->v->e = e2;
-    e3->v->e = e3;
-
-	// 3. create the new graph and change the vertex list
-	g2 = (struct graph*) malloc(sizeof(struct graph));
-	e1->v->visited = true;
-	e2->v->visited = true;
-	e3->v->visited = true;
-	struct vertex * v_interior = e1->next->rev->v; // assumed that there is an interior vertex
-	g2->n = 0;
-	g2->vert = NULL;
-	graph_separating_dfs(v_interior,g1,g2);
-
-	// 4. remap interior edges to new edges and vertices
-	e = e1->next;
-	e->prev = vnew_1->e;
-	vnew_1->e->next = e;
-	while (e!=e3->rev) {
-		e->v = vnew_1;
-		vnew_1->deg++;
-		e = e->next;
-	}
-	vnew_1->e->prev->prev = e->prev; // connect outer parts
-	e->prev->next = vnew_1->e->prev;
-
-	// vnew_2
-	e = e2->next;
-	e->prev = vnew_2->e;
-	vnew_2->e->next = e;
-	while (e!=e1->rev) {
-		e->v = vnew_2;
-		vnew_2->deg++;
-		e = e->next;
-	}
-	vnew_2->e->prev->prev = e->prev;
-	e->prev->next = vnew_2->e->prev;
-
-	// vnew_3
-	e = e3->next;
-	e->prev = vnew_3->e;
-	vnew_3->e->next = e;
-	while (e!=e2->rev) {
-		e->v = vnew_3;
-		vnew_3->deg++;
-		e = e->next;
-	}
-	vnew_3->e->prev->prev = e->prev;
-	e->prev->next = vnew_3->e->prev;
-
-	add_to_vertex_list(g2,vnew_1);
-	add_to_vertex_list(g2,vnew_2);
-	add_to_vertex_list(g2,vnew_3);
-
-	// 5. remap edges of g1 to not include vertices inside short circuit
-	e1->next = e3->rev;
-	e2->next = e1->rev;
-	e3->next = e2->rev;
-	e3->rev->prev = e1;
-	e2->rev->prev = e3;
-	e1->rev->prev = e2;
-	e1->v->deg -= vnew_1->deg - 2;
-	e2->v->deg -= vnew_2->deg - 2;
-	e3->v->deg -= vnew_3->deg - 2;
-
-    // 6. color the two divided graph
-	find_coloring(g1);
-	find_coloring(g2);
-
-    // 7. match the colorings
-    int perm[4];
-    perm[e1->color]=vnew_1->e->color;
-    perm[e2->color]=vnew_2->e->color;
-    perm[e3->color]=vnew_3->e->color;
-    color_change(g2, perm);
-
-    // 8. fuse the graphs back together
-    fuse_vertex(e1->v, vnew_1);
-    fuse_vertex(e2->v, vnew_2);
-    fuse_vertex(e3->v, vnew_3);
-
-    // change the vertex list of g1
-    remove_from_vertex_list(g2,vnew_1);
-    remove_from_vertex_list(g2,vnew_2);
-    remove_from_vertex_list(g2,vnew_3);
-    // combine the vertex lists
-    struct vertex* v_temp = g1->vert->next;
-    g1->vert->next = g2->vert->next;
-    g2->vert->next->prev = g1->vert;
-    g2->vert->next = v_temp;
-    v_temp->prev = g2->vert;
-    g1->n += g2->n;
-}
-
 // eliminates vertices of degree three
 void degree_three_elimination(struct graph* g, struct vertex* head){
 	struct vertex* v;
@@ -1345,7 +1218,7 @@ void find_coloring(struct graph* g){
 	}
 	
 	// searches for parallel edges and run SCS for size = 2 if we find any
-	
+	/*
 	set_visited_false(g);
 	v = g->vert;
 	for(i = 0; i < g->n; i++){
@@ -1381,7 +1254,7 @@ void find_coloring(struct graph* g){
 	// searches for vertices of degree <= 3 and deletes them
 	v = g->vert;
 	for(i = 0; i < g->n; i++){
-		if( v->deg <= 3 ){
+		if( v->deg == 3 ){
 			degree_three_elimination(g, v);
 			return;	
 		}
@@ -1399,13 +1272,22 @@ void find_coloring(struct graph* g){
 		// add the vertices of degree <= 3 back
 		return;
 	}
-	
+	*/
 	// no simple reduction, search for a hub 
 	hub = find_hub(g);
 	if(ERROR) return;
 	
+	debug("Hub == %d\n",hub->num);
+	
+	
 	conf_num = find_configuration(hub);
 	if(ERROR) return;
+	
+	debug("Config = %d\n",conf_num);
+	
+	for(i = 1; i <= conf[conf_num].n; i++){
+		debug("Map[%d] = %d\n",i,map[i]->num);
+	}
 	
 	// look for a short circuit in the cartweel of hub
 	// contract the configuration
@@ -1603,15 +1485,131 @@ void read_conf(char* data){
 	fclose(ptr);
 }
 
+struct graph* split_graph(struct graph* g1, int size, struct edge* circuit[5]) {
+    int i;
+    struct graph* g2;
+    struct edge*e;
+    struct vertex* vnew_list[5];
+    struct vertex * v_interior; // used in graph separating dfs
+
+    // Some of these steps below could be combined into one loop, but
+    // for the sake of readability they were separated since the number
+    // of times each is called is leq 6
+
+    // 1. create vertices
+    for (i = 0; i < size; i++)
+    {
+        vnew_list[i] = (struct vertex*) malloc(sizeof(struct vertex));
+        vnew_list[i]->num = circuit[i]->v->num;
+    }
+    // 2. add edges between vertices
+    for (i = 0; i < size; i++)
+    {
+        add_edge(vnew_list[i], vnew_list[(i+1)%size]);
+        vnew_list[i]->deg++;
+        add_edge(vnew_list[i], vnew_list[((i-1)+size)%size]);
+        vnew_list[i]->deg++;
+    }
+    // 3. enforce ordering on vertices to have clockwise (same as input edges in scs)
+    for (i = 0; i < size; i++)
+    {
+        vnew_list[i]->e = find_edge(vnew_list[i], vnew_list[(i+1)%size]);
+        circuit[i]->v->e = circuit[i];
+    }
+    // 4. create new graph g2
+    g2 = (struct graph*) malloc(sizeof(struct graph));
+    g2->n = 0;
+	g2->vert = NULL;
+    // 5. call graph separating dfs (alters the vertex list of g1 and g2)
+    for (i = 0; i < size; i++)
+    {
+        circuit[i]->v->visited = true;
+    }
+    v_interior = circuit[0]->next->rev->v; // assumed that there is an interior vertex
+    graph_separating_dfs(v_interior,g1,g2);
+    for (i = 0; i < size; i++)
+    {
+        add_to_vertex_list(g2,vnew_list[i]);
+    }
+    // 6. remap the internal edges into g2
+    for (i = 0; i < size; i++) {
+        e = circuit[i]->next;
+        e->prev = vnew_list[i]->e;
+        vnew_list[i]->e->next = e;
+        while (e!=circuit[(i-1+size)%size]->rev) {
+            e->v = vnew_list[i];
+            vnew_list[i]->deg++;
+            e = e->next;
+        }
+        vnew_list[i]->e->prev->prev = e->prev; // connect outer parts
+        e->prev->next = vnew_list[i]->e->prev;
+    }
+    // 7. remap the internal edges out of g1
+    for (i = 0; i < size; i++)
+    {
+        circuit[i]->next = circuit[(i-1+size)%size]->rev;
+        circuit[(i-1+size)%size]->rev->prev = circuit[i];
+        circuit[i]->v->deg -= vnew_list[i]->deg - 2;
+    }
+    return g2;
+}
+
+
+// short circuit subroutine for circuit size 3
+// cw for g2
+// split the graph into two graphs, and run find_coloring on both
+// creates a new circuit for one of the graphs, the other uses original.
+// ei are the edges of the short circuit, in cw orientation
+void scs_3(struct graph* g1,struct edge* e1,struct edge* e2,struct edge* e3){
+    struct graph* g2;
+    struct edge* e;
+    // 1. create new vertices
+    struct vertex * vnew_1;
+    struct vertex * vnew_2;
+    struct vertex * vnew_3;
+    struct edge* edge_list[3];
+    edge_list[0] = e1;
+    edge_list[1] = e2;
+    edge_list[2] = e3;
+    g2 = split_graph(g1, 3, edge_list);
+    vnew_1 = g2->vert->prev->prev->prev;
+    vnew_2 = g2->vert->prev->prev;
+    vnew_3 = g2->vert->prev;
+    // 6. color the two divided graph
+	find_coloring(g1);
+	find_coloring(g2);
+    // 7. match the colorings
+    int perm[4];
+    perm[e1->color]=vnew_1->e->color;
+    perm[e2->color]=vnew_2->e->color;
+    perm[e3->color]=vnew_3->e->color;
+    color_change(g2, perm);
+    // 8. fuse the graphs back together
+    fuse_vertex(e1->v, vnew_1);
+    fuse_vertex(e2->v, vnew_2);
+    fuse_vertex(e3->v, vnew_3);
+    // 9. change the vertex list of g1
+    remove_from_vertex_list(g2,vnew_1);
+    remove_from_vertex_list(g2,vnew_2);
+    remove_from_vertex_list(g2,vnew_3);
+    // 10. combine the vertex lists
+    struct vertex* v_temp = g1->vert->next;
+    g1->vert->next = g2->vert->next;
+    g2->vert->next->prev = g1->vert;
+    g2->vert->next = v_temp;
+    v_temp->prev = g2->vert;
+    g1->n += g2->n;
+}
+
 int main(){
 	struct graph* g;
 	char data[256];
 	
 	read_conf("configurations.txt");
 	
-//	printf("Enter file name including extension: \n");
-//	scanf("%s", data);
-	g = read_graph("data4.txt");
+	printf("Enter file name including extension: \n");
+	scanf("%s", data);
+//	g = read_graph("rtest.txt");
 /*
 	struct vertex *v1, *v2;
 	v1 = g->vert;
