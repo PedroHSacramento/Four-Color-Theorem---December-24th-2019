@@ -6,6 +6,7 @@
 #define debug printf
 
 int num_label = 1;
+FILE* ptr; 
 
 struct edge {
 	struct vertex* v;		// vertex the edge is connected to
@@ -52,7 +53,7 @@ void degree_three_elimination(struct graph* g){
 	struct vertex* head;	// linked list of vertices deleted
 	struct vertex* tail;	// linked list of vertices deleted
 	struct edge* e;
-	int i;
+	int i, n = g->n;
 	// let v be the next meeber in the vertex list
 	
 	v = g->vert;
@@ -71,8 +72,9 @@ void degree_three_elimination(struct graph* g){
 	remove_from_vertex_list(g, head);
 	// create linked list of vertices to delete 
 	tail = head;
-	head-> prev = tail->next = NULL;
-	for(i = 0; i < g->n; i++){
+	head-> prev = tail->next = NULL;	
+	// use n as limit since g->n varies
+	for(i = 0; i <= n; i++){
 		if(v->deg == 3){
 			// remove it from the vertex list
 			remove_from_vertex_list(g, v);
@@ -109,6 +111,13 @@ void degree_three_elimination(struct graph* g){
 				tail = tail->next;
 			}
 			e = e->next;
+		}
+		v = v->next;
+	}
+	v = g->vert;
+	for(i = 0; i < g->n; i++){
+		if( v->deg == 3 ){
+			printf("%d\n",i);
 		}
 		v = v->next;
 	}
@@ -330,6 +339,32 @@ void face_fill(int size, struct graph* g, struct edge* e){
 	face_fill(size - dist + 1, g, e);
 }
 
+// fills the face between e and e->next with edges until it is a triangulation
+//
+void face_fill_deg_fix(int size, struct graph* g, struct edge* e){
+	struct edge* e1;
+	struct edge* e2;
+	struct vertex* v1;
+	struct vertex* v2;
+	int i, dist;
+	
+	if( size == 3 ) return;
+	
+//	print_graph(g);
+	while(size > 3){
+		e1 = e;
+		for(i = 0; i < size; i++){
+			if(e1->v->deg <= 4 && e1->rev->v->deg >= 5) break;
+			e1 = e1->rev->prev;
+		}
+		v1 = e1->v;
+		e2 = e1->rev->prev->rev->prev;
+		v2 = e2->v;
+		e = create_edge_between(v1, v2, e1, e2);
+		size--;
+	}
+}
+
 struct graph* cycle_generator(int size){
 	// first line is the number of vertices
 	// second line is list of degrees of each vertex
@@ -413,21 +448,21 @@ struct graph* random_planar_graph(int size){
 		create_triangle(g, e);
 		e = e->next;
 	}
-	face_fill(size, g, e);
-	degree_three_elimination(g);
+	face_fill_deg_fix(size, g, e);
+//	degree_three_elimination(g);
 	renumber_vertices(g);
 	return g;
 }
 
 int main(){
 	int n;
-	char data[100]= "rtest.txt";
+	char data[100];
 	srand (time(NULL));
-	printf("Input maximum size of the graph\n");
+	printf("Input size of the graph\n");
 	scanf("%d",&n);
 	printf("Input output file name\n");
 	scanf("%s",data);
-	FILE* ptr = fopen(data,"w");
+	ptr = fopen(data,"w");
 	print_graph(random_planar_graph(n), ptr);
 	return 0;
 }
