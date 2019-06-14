@@ -3,7 +3,7 @@
 #include <time.h>
 #include <stdbool.h>
 
-#define debug printf
+#define debug //
 
 int num_label = 1;
 FILE* ptr; 
