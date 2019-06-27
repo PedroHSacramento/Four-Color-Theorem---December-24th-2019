@@ -6,6 +6,7 @@
 #define NUM_RULES      67
 #define MAX_CONF_SIZE  26
 #define NUM_CONF      633
+#define MAX_NAME_SIZE 20
 
 #define swap(x,y) do \
    { unsigned char swap_temp[sizeof(x) == sizeof(y) ? (signed)sizeof(x) : -1]; \
@@ -17,6 +18,7 @@
 bool ERROR = false;
 int memory_in_use = 0;
 int num_label = 1;
+int color[27], color_res[27];
 int rule_size[] = { 2,  2,  3,  3,  4,  4,  5,  5,  5,  5,  6,  6,  
     6,  6,  7,  7,  4,  4,  5,  5,  6,  6,  6,  7,  7,  8,  8,  8,  
 	6,  6,  8,  8,  8,  8,  9,  9,  8,  8, 10, 10,  8,  8,  8,  8,  
@@ -249,11 +251,12 @@ struct vertex {
 	int deg;
 	int weight;
 	int color;
+	int col;
 	bool visited;
 	struct edge* e;			/* pointer to the first edge */
 	struct vertex *next;
 	struct vertex *prev;
-} *map[MAX_CONF_SIZE + 1];
+};
 
 struct graph {
 	char name[100];
@@ -261,8 +264,9 @@ struct graph {
 	struct vertex* vert;	/* pointer to the first vertex */
 };
 
+
 struct configuration {
-	char N[100];	// a character string identifying the configuration;
+	char N[MAX_NAME_SIZE];	// a character string identifying the configuration;
 	int n;			// n is the number of vertices of the free completion;
 	int r;			// r is the ring-size;
 	int a;			// a is the cardinality of C ; and
@@ -301,6 +305,7 @@ struct edge* create_edge_between(struct vertex*, struct vertex*, struct edge*, s
 void graph_separating_dfs(struct vertex*, struct graph*, struct graph*);
 void color_change(struct graph*, int*);
 void fuse_vertex(struct vertex*, struct vertex*);
+void reduce_and_color_conf(struct graph*, int, struct vertex**);
 
 // debug function
 void* my_malloc(size_t size){
@@ -429,12 +434,7 @@ struct graph* split_graph(struct graph* g1, int size, struct edge* circuit[5]) {
     struct edge*e;
     struct vertex* vnew_list[5];
     struct vertex * v_interior; // used in graph separating dfs
-
-    // Some of these steps below could be combined into one loop, but
-    // for the sake of readability they were separated since the number
-    // of times each is called is leq 6
-
-    // 1. create vertices
+    // 1. create copy of circuit
     for (i = 0; i < size; i++) {
         vnew_list[i] = (struct vertex*) malloc(sizeof(struct vertex));
         vnew_list[i]->num = circuit[i]->v->num;
@@ -461,8 +461,15 @@ struct graph* split_graph(struct graph* g1, int size, struct edge* circuit[5]) {
     for (i = 0; i < size; i++){
         circuit[i]->v->visited = true;
     }
-    v_interior = circuit[0]->next->rev->v; // assumed that there is an interior vertex
-    graph_separating_dfs(v_interior,g1,g2);
+    for (i = 0; i < size; i++){
+        e = circuit[i]->next;
+        while (e!= circuit[(i-1+size)%size]->rev) {
+            if (!e->rev->v->visited) {
+                graph_separating_dfs(e->rev->v,g1,g2);
+            }
+            e = e->next;
+        }
+    }
     for (i = 0; i < size; i++) {
         add_to_vertex_list(g2,vnew_list[i]);
     }
@@ -513,9 +520,9 @@ void scs_3(struct graph* g1,struct edge* e1,struct edge* e2,struct edge* e3){
 	find_coloring(g2);
     // 7. match the colorings
     int perm[4];
-    perm[e1->color]=vnew_1->e->color;
-    perm[e2->color]=vnew_2->e->color;
-    perm[e3->color]=vnew_3->e->color;
+    perm[vnew_1->e->color] = e1->color;
+    perm[vnew_2->e->color] = e2->color;
+    perm[vnew_3->e->color] = e3->color;
     color_change(g2, perm);
     // 8. fuse the graphs back together
     fuse_vertex(e1->v, vnew_1);
@@ -1028,6 +1035,7 @@ void graph_separating_dfs(struct vertex* v, struct graph* g1, struct graph* g2){
 	add_to_vertex_list(g2, v);
 	for(i = 0; i < v->deg; i++){
 		if(e->rev->v->visited == false) graph_separating_dfs(e->rev->v, g1, g2);
+		e = e->next;
 	}
 }
 
@@ -1195,6 +1203,7 @@ void parallel_edges_coloring(struct graph* g1, struct edge* e1, struct edge* e2)
 }
 
 // removes an edge e from the list of edges of e->v
+// does NOTHING to e->rev
 void remove_from_edge_list(struct edge* e){
 	if(e == NULL){
 		printf("Trying to remove a NULL edge in remove_from_edge_list\n");
@@ -1202,8 +1211,8 @@ void remove_from_edge_list(struct edge* e){
 		return;
 	}
 	if(e->v->deg == 1){
-		printf("Trying to remove the only edge of a vertex in remove_from_edge_list\n");
-		ERROR = true;
+		e->v->e = NULL;
+		e->v->deg--;
 		return;
 	}
 	if(e->v->e == e){
@@ -1329,7 +1338,7 @@ void degree_three_elimination(struct graph* g, struct vertex* head){
 			e = e->next;
 		}
 		v = v->next;
-	}
+	}	
 	find_coloring(g);
 	if(ERROR) return;
 	v = tail;
@@ -1353,7 +1362,7 @@ void degree_three_elimination(struct graph* g, struct vertex* head){
 
 // add symmetry support 
 // dfs to check graph isomorphism
-bool iso_dfs(int r, struct vertex* vg, struct vertex* vc, bool clockwise){
+bool iso_dfs(int r, struct vertex* vg, struct vertex* vc, struct vertex** map, bool clockwise){
 	struct edge* eg;
 	struct edge* ec;
 	int i;
@@ -1368,7 +1377,7 @@ bool iso_dfs(int r, struct vertex* vg, struct vertex* vc, bool clockwise){
 		if(ec->rev->v->visited == false){
 			ec->rev->v->e = ec->rev;
 			eg->rev->v->e = eg->rev;
-			if( ! iso_dfs(r, eg->rev->v, ec->rev->v, clockwise) ) return false;
+			if( ! iso_dfs(r, eg->rev->v, ec->rev->v, map, clockwise) ) return false;
 		}
 		eg = eg->next;
 		ec = clockwise ? ec->next : ec->prev;
@@ -1376,9 +1385,8 @@ bool iso_dfs(int r, struct vertex* vg, struct vertex* vc, bool clockwise){
 	return true;
 }
 
-// add symmetry support 
 // given a hub finds a configuration in its cartwheel
-int find_configuration(struct vertex* hub){
+struct vertex** find_nth_configuration(struct vertex* hub, int num, struct vertex** map){
 	int i, j, k;
 	struct edge* e1;
 	struct edge* e2;
@@ -1398,18 +1406,28 @@ int find_configuration(struct vertex* hub){
 				v->e = e2;
 				
 				set_visited_false(&conf[i].g);
-				if( iso_dfs(conf[i].r, hub, v, true) ) return i;
+				if( iso_dfs(conf[i].r, hub, v, map, true) ) return map;
 				set_visited_false(&conf[i].g);
-				if( iso_dfs(conf[i].r, hub, v, false) ) return i;
+				if( iso_dfs(conf[i].r, hub, v, map, false) ) return map;
 				e1 = e1->next;	
 			}
 			v = v->prev;
 		}
 	}
+	return NULL;
+}
+
+// given a hub finds a configuration in its cartwheel
+int find_configuration(struct vertex* hub, struct vertex** map){
+	int i;
+	for(i = 1; i <= NUM_CONF; i++){
+		if( find_nth_configuration(hub, i, map) != NULL) return i;
+	}
 	printf("Error: find_configuration couldn't find a configuration with hub %d\n",hub->num);
 	ERROR = true;
 	return 0;
 }
+	
 
 // finds a short circuit in the neighborhood of hub
 // assumes no parallel edges, no loops and min deg >= 5
@@ -1623,6 +1641,7 @@ void print_graph(struct graph* g){
 void find_coloring(struct graph* g){
 	struct vertex* v;
 	struct vertex* hub;
+	struct vertex** map;
 	struct edge* e1;
 	struct edge* e2;
 	struct edge* e3;
@@ -1641,15 +1660,18 @@ void find_coloring(struct graph* g){
 	// searches for parallel edges and run SCS for size = 2 if we find any
 	set_visited_false(g);
 	v = g->vert;
+	
+//	print_graph(g);
+	
 	for(i = 0; i < g->n; i++){
 		e1 = v->e;
 		for(j = 0; j < v->deg; j++){
 			if(e1->rev->v->visited == true){	// found parallel edges
 				e2 = v->e;
-				for(i = 0; i < j; i++){
+				for(k = 0; k < j; k++){
 					if(e1->rev->v == e2->rev->v){
 						parallel_edges_coloring(g, e1, e2->rev);
-						break;	
+						return;
 					}
 					e2 = e2->next;
 				}
@@ -1714,20 +1736,24 @@ void find_coloring(struct graph* g){
 			debug("  Edge %d %d\n",short_circuit[i]->v->num, short_circuit[i]->rev->v->num);
 		}
 	}
-		
-	conf_num = find_configuration(hub);
-	if(ERROR) return;
-	
-	for(i = 1; i <= conf[conf_num].n; i++){
-		debug("Map[%d] = %d\n",i,map[i]->num);
+	map = (struct vertex**) malloc((sizeof(struct vertex*)) * (MAX_CONF_SIZE + 1));
+	if(map == NULL){
+		printf("Not enough space for map in find_configuration\n");
+		ERROR = true;
+		return;
 	}
-	// look for a short circuit in the cartweel of hub
+	map[1] = NULL;
+	conf_num = find_configuration(hub, map);
+	if(ERROR) return;
+	reduce_and_color_conf(g, conf_num, map);
+//	for(i = 1; i <= conf[conf_num].n; i++){
+//		debug("Map[%d] = %d\n",i,map[i]->num);
+//	}
 	// contract the configuration
 	// call find_coloring recursively
 	// undo contraction and extend coloring
 	return;
 }
-
 
 void renumber_vertices(struct graph* g){
 	struct vertex* v = g->vert;
@@ -1906,6 +1932,192 @@ void rib(struct edge* e, int color){
 	e->rev->color = e->color;
 }
 
+// rotates a circuit of size 5
+void rotate_circuit(struct edge** circuit, int a){
+	struct edge* e = circuit[0];
+	circuit[0] = circuit[a%5];
+	circuit[a%5] = circuit[(2*a)%5];
+	circuit[(2*a)%5] = circuit[(3*a)%5];
+	circuit[(3*a)%5] = circuit[(4*a)%5];
+	circuit[(4*a)%5] = e;
+}
+
+// given a coloring of the edge return which case it is
+int find_scs5_current_coloring_case(struct edge** circuit){
+	int sum, color;
+	sum = circuit[0]->color;
+	sum += circuit[1]->color;
+	sum += circuit[2]->color;
+	sum += circuit[3]->color;
+	sum += circuit[4]->color;
+	color = (sum - 6)/2; 	// the most frequent color
+//	printf("Colors: %d %d %d %d %d\n",circuit[0]->color, circuit[1]->color, circuit[2]->color, circuit[3]->color, circuit[4]->color);
+	if(circuit[0]->color != color){
+		if(circuit[1]->color != color) return 0;
+		if(circuit[2]->color != color) return 1;
+		if(circuit[3]->color != color) return 2;
+		if(circuit[4]->color != color) return 3;
+	}
+	else if(circuit[1]->color != color){
+		if(circuit[2]->color != color) return 4;
+		if(circuit[3]->color != color) return 5;
+		if(circuit[4]->color != color) return 6;
+	}
+	else if(circuit[2]->color != color){
+		if(circuit[3]->color != color) return 7;
+		if(circuit[4]->color != color) return 8;
+	}
+	else if(circuit[3]->color != color){
+		if(circuit[4]->color != color) return 9;
+	}
+	ERROR = true;
+	printf("Couldn't find coloring case for short circuit of size 5\n");
+	return -1;
+}
+
+// dfs to apply 6.2 to a circuit of size 5
+void find_scs5_coloring_case_dfs(struct edge** circuit, bool* colorings){
+	int i, color_case;
+	
+	printf("*\n");
+	printf("Color case %d:\n",find_scs5_current_coloring_case(circuit));
+	//print_graph(gg);
+	
+	for(i = 0; i < 5; i++){
+		rib(circuit[i]->rev, (circuit[i]->color % 3) + 1);
+		color_case = find_scs5_current_coloring_case(circuit);
+		if( ! colorings[color_case] ){
+			colorings[color_case] = true;
+			find_scs5_coloring_case_dfs(circuit, colorings);
+		}
+		rib(circuit[i]->rev, (circuit[i]->color % 3) + 1);
+		// 
+		rib(circuit[i]->rev, ((circuit[i]->color + 1) % 3) + 1);
+		color_case = find_scs5_current_coloring_case(circuit);
+		if( ! colorings[color_case] ){
+			colorings[color_case] = true;
+			find_scs5_coloring_case_dfs(circuit, colorings);
+		}
+		rib(circuit[i]->rev, ((circuit[i]->color + 1) % 3) + 1);
+	}
+}
+
+// Applies 6.2 to find the possible colorings of a circuit of size 5
+int find_scs5_coloring_case(struct edge** circuit, struct edge** circuit2){
+	bool colorings[10];
+	int i;
+	
+	printf("Entered find_scs5_coloring_case\n");
+	
+	for(i = 0; i < 10; i++) colorings[i] = false;
+	colorings[find_scs5_current_coloring_case(circuit)] = true;
+	find_scs5_coloring_case_dfs(circuit, colorings);
+	
+	if( colorings[3] && colorings[0] && colorings[6] ){
+		return 1;
+		// C1
+	}
+	else if( colorings[0] && colorings[4] && colorings[1] ){
+		rotate_circuit(circuit, 1);
+		rotate_circuit(circuit2, 1);
+		return 1;
+		// C2
+	}
+	else if( colorings[4] && colorings[7] && colorings[5] ){
+		rotate_circuit(circuit, 2);
+		rotate_circuit(circuit2, 2);
+		return 1;
+		// C3
+	}
+	else if( colorings[7] && colorings[9] && colorings[8] ){
+		rotate_circuit(circuit, 3);
+		rotate_circuit(circuit2, 3);
+		return 1;
+		// C4
+	}
+	else if( colorings[9] && colorings[3] && colorings[2] ){
+		rotate_circuit(circuit, 4);
+		rotate_circuit(circuit2, 4);
+		return 1;
+		// C5
+	}
+	else if( colorings[5] && colorings[6] && colorings[7] && colorings[8] ){
+		return 2;
+		// D1
+	}
+	else if( colorings[8] && colorings[1] && colorings[9] && colorings[2] ){
+		rotate_circuit(circuit, 1);
+		rotate_circuit(circuit2, 1);
+		return 2;
+		// D2
+	}
+	else if( colorings[2] && colorings[5] && colorings[3] && colorings[6] ){
+		rotate_circuit(circuit, 2);
+		rotate_circuit(circuit2, 2);
+		return 2;
+		// D3
+	}
+	else if( colorings[6] && colorings[8] && colorings[0] && colorings[1] ){
+		rotate_circuit(circuit, 3);
+		rotate_circuit(circuit2, 3);
+		return 2;
+		// D4
+	}
+	else if( colorings[1] && colorings[2] && colorings[4] && colorings[5] ){
+		rotate_circuit(circuit, 4);
+		rotate_circuit(circuit2, 4);
+		return 2;
+		// D5
+	}
+	else if( colorings[0] && colorings[4] && colorings[7] && colorings[9] && colorings[3] ){
+		return 3;
+		// E
+	}
+	ERROR = true;
+	printf("Couldn't find correct scs5 coloring case\n");
+	return -1;
+}
+
+bool change_scs5_circuit_dfs(struct edge** circuit, int coloring_case, bool* colorings){
+	int i, cur_case;
+	
+	for(i = 0; i < 5; i++){
+		rib(circuit[i]->rev, circuit[i]->color ^ 1);
+		cur_case = find_scs5_current_coloring_case(circuit);
+		if( cur_case == coloring_case ) return true;
+		if( ! colorings[cur_case] ){
+			colorings[cur_case] = true;
+			if( change_scs5_circuit_dfs(circuit, coloring_case, colorings) ) return true;
+		}
+		rib(circuit[i]->rev, circuit[i]->color ^ 1);
+		// 
+		rib(circuit[i]->rev, circuit[i]->color ^ 2);
+		cur_case = find_scs5_current_coloring_case(circuit);
+		if( cur_case == coloring_case ) return true;
+		if( ! colorings[cur_case] ){
+			colorings[cur_case] = true;
+			if( change_scs5_circuit_dfs(circuit, coloring_case, colorings) ) return true;
+		}
+		rib(circuit[i]->rev, circuit[i]->color ^ 2);
+	}
+	return false;
+}
+
+// can be made more efficient
+void change_scs5_circuit(struct edge** circuit, int coloring_case){
+	bool coloring_visited[10];
+	int i, cur_case;
+	
+	cur_case = find_scs5_current_coloring_case(circuit);
+	if( cur_case == coloring_case ) return;
+	for(i = 0; i < 10; i++) coloring_visited[i] = false;
+	coloring_visited[cur_case] = true;
+	if( ! change_scs5_circuit_dfs(circuit, coloring_case, coloring_visited) ){
+		ERROR = true;
+		printf("Couldn't find the correct coloring for the circuit in scs5\n");
+	}
+}
+
 // circuit size four, contains vertex inside circuit, edges in cw order
 void scs_4(struct graph* g1,struct edge* e1,struct edge* e2,struct edge* e3, struct edge* e4) {
     int i, j;
@@ -1921,7 +2133,7 @@ void scs_4(struct graph* g1,struct edge* e1,struct edge* e2,struct edge* e3, str
     struct edge * enew_3;
     struct edge * enew_4;
     int perm[] = {0, 0, 0, 0};
-    
+
     edge_list[0] = e1;
     edge_list[1] = e2;
     edge_list[2] = e3;
@@ -1940,10 +2152,10 @@ void scs_4(struct graph* g1,struct edge* e1,struct edge* e2,struct edge* e3, str
     find_coloring(g1); // check C1 or C2
     if (e1->color != e2->color && e1->color == e4->color && e2->color == e3->color) {
         c_i = 1;
-    } 
+    }
 	else if (e1->color != e2->color && e1->color == e3->color && e2->color == e4->color) {
         c_i = 2;
-    } 
+    }
 	else {
         printf("ERROR: (scs4) c_i neither 1 or 2 \n");
         return;
@@ -1953,16 +2165,16 @@ void scs_4(struct graph* g1,struct edge* e1,struct edge* e2,struct edge* e3, str
     rib(e1->rev,e->color);
     if (c_i == 1 && e1->color == e2->color && e2->color == e3->color && e3->color == e4->color) {
         c_j = 0;
-    } 
+    }
 	else if (c_i == 1 && e1->color == e3->color) {
         c_j = 2;
-    } 
+    }
 	else if (c_i == 2 && e1->color != e2->color) {
         c_j = 1;
-    } 
+    }
 	else if (c_i == 2 && e1->color == e2->color){
         c_j = 3;
-    } 
+    }
 	else {
         printf("ERROR: (scs4) Can't determine C_i and C_j\n");
         return;
@@ -1987,6 +2199,8 @@ void scs_4(struct graph* g1,struct edge* e1,struct edge* e2,struct edge* e3, str
         remove_from_vertex_list(g2, vnew_4);
         // color graph
         find_coloring(g2);
+        enew_3->v->e = enew_3; // might have changed to v4's edges in coloring
+
         // Separate vertex 2 and 4 in G2
         add_to_vertex_list(g2, vnew_4);
         enew_3->rev->prev->next = enew_3;
@@ -2015,14 +2229,14 @@ void scs_4(struct graph* g1,struct edge* e1,struct edge* e2,struct edge* e3, str
             perm[enew_1->color^enew_2->color] = e1->color^e2->color;
             // if both G1 G2 are C0, no need to do any recoloring
             color_change(g2, perm);
-        } 
+        }
 		else if (enew_1->color != e1->color){ // both c0 but colored different
             perm[enew_1->color]=e1->color;
             perm[e1->color] = enew_1->color;
             perm[e1->color^enew_1->color] = e1->color^enew_1->color;
             color_change(g2, perm);
         }
-    } 
+    }
 	else if ((c_i == 1 && c_j == 2) | (c_i == 2 && c_j == 1)) { // case 2
         // Add edge between 1 and 3
         e = create_edge_between(vnew_1, vnew_3, find_edge(vnew_1, vnew_4), find_edge(vnew_3,vnew_2));
@@ -2032,7 +2246,7 @@ void scs_4(struct graph* g1,struct edge* e1,struct edge* e2,struct edge* e3, str
         // convert G1 to whatever G2 is. if same then no ribs needed
         if (c_j == 1 && enew_1->color != enew_4->color) { // G1 is C1 but G2 is C2
             rib(e1->rev,e1->color^e2->color);
-        } 
+        }
 		else if (c_j == 2 && enew_1->color == enew_4->color) { // G1 is C2 but G2 is C1
             rib(e1->rev,e1->color^e2->color);
         }
@@ -2040,7 +2254,7 @@ void scs_4(struct graph* g1,struct edge* e1,struct edge* e2,struct edge* e3, str
         perm[enew_2->color]=e2->color;
         perm[enew_1->color^enew_2->color] = e1->color^e2->color;
         color_change(g2, perm);
-    } 
+    }
 	else if (c_i == 2 && c_j == 3) { // case 3
         // Add an edge between 2 and 4
         e = create_edge_between(vnew_2, vnew_4, find_edge(vnew_2, vnew_1), find_edge(vnew_4,vnew_3));
@@ -2055,7 +2269,7 @@ void scs_4(struct graph* g1,struct edge* e1,struct edge* e2,struct edge* e3, str
         perm[enew_4->color]=e4->color;
         perm[enew_1->color^enew_4->color] = e1->color^e4->color;
         color_change(g2, perm);
-    } 
+    }
 	else {
         debug("ERROR: (scs_4) not able to recolor\n");
         return;
@@ -2087,18 +2301,317 @@ void scs_4(struct graph* g1,struct edge* e1,struct edge* e2,struct edge* e3, str
     g1->n += g2->n;
 }
 
+void scs_5(struct graph* g1,struct edge* e1,struct edge* e2,struct edge* e3, struct edge* e4, struct edge* e5) {
+    int i, j, case_coloring;
+    struct graph *g2;
+    struct vertex *vnew_1, *vnew_2, *vnew_3, *vnew_4, *vnew_5;
+    struct vertex *v_adj, *v_adj_D1, *v_temp;
+    struct edge *edge_list[5], *edge_list2[5];
+    struct edge *e, *e_temp;
+    struct edge *enew_1, *enew_2, *enew_3, *enew_4, *enew_5;
+    int perm[] = {0, 0, 0, 0};
+    edge_list[0] = e1;
+    edge_list[1] = e2;
+    edge_list[2] = e3;
+    edge_list[3] = e4;
+    edge_list[4] = e5;
+    g2 = split_graph(g1, 5, edge_list);
+    vnew_1 = g2->vert->prev->prev->prev->prev->prev; // fifth last addition is added vertex
+    vnew_2 = g2->vert->prev->prev->prev->prev;
+    vnew_3 = g2->vert->prev->prev->prev;
+    vnew_4 = g2->vert->prev->prev;
+    vnew_5 = g2->vert->prev;
+    enew_1 = find_edge(vnew_1, vnew_2);
+    enew_2 = find_edge(vnew_2, vnew_3);
+    enew_3 = find_edge(vnew_3, vnew_4);
+    enew_4 = find_edge(vnew_4, vnew_5);
+    enew_5 = find_edge(vnew_5, vnew_1);
+    edge_list2[0] = enew_1;
+    edge_list2[1] = enew_2;
+    edge_list2[2] = enew_3;
+    edge_list2[3] = enew_4;
+    edge_list2[4] = enew_5;
+    // Let T1 be obtained from H1 by adding a new vertex adjacent to v1 , ..., v5 .
+    v_adj = (struct vertex*) malloc(sizeof(struct vertex));
+    v_adj->num = ++num_label;
+    add_to_vertex_list(g1,v_adj);
+    e = create_edge_between(e1->v, v_adj, e1, NULL);
+    e = create_edge_between(e2->v, v_adj, e2, e->rev);
+    e = create_edge_between(e3->v, v_adj, e3, e->rev);
+    e = create_edge_between(e4->v, v_adj, e4, e->rev);
+    e = create_edge_between(e5->v, v_adj, e5, e->rev);
+    find_coloring(g1);
+    j = v_adj->deg;
+    for (i = 0; i < j; i++) {
+        e = v_adj->e;
+        remove_from_edge_list(v_adj->e);
+        remove_from_edge_list(e->rev);
+    }
+    remove_from_vertex_list(g1, v_adj);
+	case_coloring = find_scs5_coloring_case(edge_list, edge_list2);
+    e1 = edge_list[0];
+    e2 = edge_list[1];
+    e3 = edge_list[2];
+    e4 = edge_list[3];
+    e5 = edge_list[4];
+    enew_1 = edge_list2[0];
+    enew_2 = edge_list2[1];
+    enew_3 = edge_list2[2];
+    enew_4 = edge_list2[3];
+    enew_5 = edge_list2[4];
+    // printf("case: %d\n", case_coloring);
+    if (case_coloring == 1) { // C1
+        //Let T2 be obtained from H2 by deleting e4 and identifying v3 with v5
+        v_temp = enew_5->v;
+        remove_from_edge_list(enew_4);
+        remove_from_edge_list(enew_4->rev);
+        remove_from_vertex_list(g2,enew_5->v);
+        j = enew_5->v->deg;
+        enew_3->v->deg += j;
+        e = enew_5;
+        for (i = 0; i < j; i++) {
+            e->v = enew_3->v;
+            e = e->next;
+        }
+        enew_2->rev->next = enew_5;
+        enew_5->prev = enew_2->rev;
+        enew_4->rev->prev->next = enew_3;
+        enew_3->prev = enew_4->rev->prev;
+
+        find_coloring(g2);
+        enew_3->v->e = enew_3; // can get shifted to v5's edge during coloring
+
+        enew_3->prev = enew_2->rev;
+        enew_4->rev->prev->next = enew_4->rev;
+        enew_5->prev = enew_4->rev;
+        enew_2->rev->next = enew_3;
+
+        e = enew_5;
+        for (i = 0; i < j; i++) {
+            e->v = v_temp;
+            e = e->next;
+        }
+        enew_3->v->deg -= j;
+
+        add_to_vertex_list(g2,v_temp);
+        reinsert_to_edge_list(enew_4->rev);
+        reinsert_to_edge_list(enew_4);
+        enew_4->color = enew_3->color;
+        enew_4->rev->color = enew_3->color;
+    } else if (case_coloring == 2) { // D1
+    // Let T2 be obtained from H2 by adding two edges with ends v2v4 , v2v5
+        e = create_edge_between(enew_2->v,enew_5->v, enew_1->rev, enew_4->rev);
+        e_temp = create_edge_between(enew_2->v, enew_4->v, e, enew_3->rev);
+        find_coloring(g2);
+        // Undo changes
+        remove_from_edge_list(e);
+        remove_from_edge_list(e->rev);
+        remove_from_edge_list(e_temp);
+        remove_from_edge_list(e_temp->rev);
+    } else { // E
+        // Let T2 be obtained from H2 by adding a new vertex adjacent to v1,v2,v3,v4,v5
+        v_adj_D1 = (struct vertex*) malloc(sizeof(struct vertex));
+        v_adj_D1->num = ++num_label;
+        add_to_vertex_list(g2,v_adj_D1);
+        e = create_edge_between(enew_1->v, v_adj_D1, enew_5->rev, NULL);
+        create_edge_between(enew_2->v, v_adj_D1, enew_1->rev, e->rev);
+        create_edge_between(enew_3->v, v_adj_D1, enew_2->rev, e->rev);
+        create_edge_between(enew_4->v, v_adj_D1, enew_3->rev, e->rev);
+        create_edge_between(enew_5->v, v_adj_D1, enew_4->rev, e->rev);
+        find_coloring(g2);
+        // Undo changes
+        j = v_adj_D1->deg;
+        for (i = 0; i < j; i++) {
+            e = v_adj_D1->e;
+            remove_from_edge_list(e);
+            remove_from_edge_list(e->rev);
+        }
+        remove_from_vertex_list(g2,v_adj_D1);
+    }
+
+    change_scs5_circuit(edge_list, find_scs5_current_coloring_case(edge_list2));
+    // All five colors appear in the circuit :)
+    perm[enew_1->color]=e1->color;
+    perm[enew_2->color]=e2->color;
+    perm[enew_3->color]=e3->color;
+    perm[enew_4->color]=e4->color;
+    perm[enew_5->color]=e5->color;
+    color_change(g2, perm);
+    // print_graph(g1);
+    // print_graph(g2);
+    // Join G1 and G2 together again
+    enew_1->v->e = enew_1;
+    enew_2->v->e = enew_2;
+    enew_3->v->e = enew_3;
+    enew_4->v->e = enew_4;
+    enew_5->v->e = enew_5;
+    e1->v->e = e1;
+    e2->v->e = e2;
+    e3->v->e = e3;
+    e4->v->e = e4;
+    e5->v->e = e5;
+    fuse_vertex(e1->v, vnew_1);
+    fuse_vertex(e2->v, vnew_2);
+    fuse_vertex(e3->v, vnew_3);
+    fuse_vertex(e4->v, vnew_4);
+    fuse_vertex(e5->v, vnew_5);
+    remove_from_vertex_list(g2,vnew_1);
+    remove_from_vertex_list(g2,vnew_2);
+    remove_from_vertex_list(g2,vnew_3);
+    remove_from_vertex_list(g2,vnew_4);
+    remove_from_vertex_list(g2,vnew_5);
+    v_temp = g1->vert->next;
+    g1->vert->next = g2->vert->next;
+    g2->vert->next->prev = g1->vert;
+    g2->vert->next = v_temp;
+    v_temp->prev = g2->vert;
+    g1->n += g2->n;
+}
+
 //debug
-void test_scs4(struct graph* g) {
+void test_scs5(struct graph* g) {
+
     struct vertex* v1 = g->vert;
     struct vertex* v2 = v1->next;
     struct vertex* v3 = v2->next;
     struct vertex* v4 = v3->next;
+    struct vertex* v5 = v4->next;
     v1->e = find_edge(v1,v2);
     v2->e = find_edge(v2,v3);
     v3->e = find_edge(v3,v4);
-    v4->e = find_edge(v4,v1);
-    // printf("%d %d %d %d\n", v1->e->rev->v->num, v2->e->rev->v->num, v3->e->rev->v->num, v4->e->rev->v->num);
-    scs_4(g,v1->e, v2->e, v3->e, v4->e);
+    v4->e = find_edge(v4,v5);
+    v5->e = find_edge(v5,v1);
+    // printf("%d %d %d %d %d\n", v1->e->rev->v->num, v2->e->rev->v->num, v3->e->rev->v->num, v4->e->rev->v->num,v5->e->rev->v->num);
+    scs_5(g,v1->e, v2->e, v3->e, v4->e, v5->e);
+}
+
+// assumes vertices from 1 to g->n
+void brute_force_coloring(struct graph* g){
+	struct edge* e;
+	struct vertex* v;
+	int i;
+//	int *color, *color_res;
+	bool works = true;
+	
+//	color = (int*) malloc((sizeof(int)) * g->n);
+//	color_res = (int*) malloc((sizeof(int)) * g->n);
+	color[g->vert->num] = 1;
+	v = g->vert->next;
+	while(v != g->vert){
+		e = v->e;
+		if(color[v->num] == 0){
+			color_res[v->num] = 0;
+			for(i = 0; i < v->deg; i++){
+				color_res[v->num] |= color[e->rev->v->num];
+				e = e->next;
+			}
+			if(color_res[v->num] == 15){
+				v = v->prev;
+				continue;
+			}
+			color[v->num] = 1;
+		}
+		else color[v->num] <<= 1;
+		while( (color[v->num] & color_res[v->num]) && color[v->num] < 16 ) color[v->num] <<= 1;
+		if(color[v->num] == 16){
+			color[v->num] = 0;
+			v = v->prev;
+		}
+		else v = v->next;
+	}
+}
+
+// assumes vertices from 1 to g->n
+void conf_brute_force_coloring(int conf_num){
+	struct graph* g;
+	struct vertex* v;
+	struct edge* e;
+	int i,r,n;
+	bool works = true;
+	
+	// uses 1, 2, 4 and 8 as colors
+	r = conf[conf_num].r;
+	g = &conf[conf_num].g;
+	n = conf[conf_num].n;
+	v = g->vert;
+	for(i = 1; i <= r; i++) v = v->next;
+	for(i = r + 1; i <= n; i++) color[i] = 0;
+	while(v != g->vert){
+		e = v->e;
+		if(color[v->num] == 0){
+			color_res[v->num] = 0;
+			for(i = 0; i < v->deg; i++){
+				color_res[v->num] |= color[e->rev->v->num];
+				e = e->next;
+			}
+			if(color_res[v->num] == 15){
+				v = v->prev;
+				continue;
+			}
+			color[v->num] = 1;
+		}
+		else color[v->num] <<= 1;
+		while( (color[v->num] & color_res[v->num]) && color[v->num] < 16 ) color[v->num] <<= 1;
+		if(color[v->num] == 16){
+			color[v->num] = 0;
+			v = v->prev;
+		}
+		else v = v->next;
+	}
+	// sends colors 1,2,4,8 to 0,1,2,3 respec
+	for(i = 1; i <= n; i++){
+		color[i] /= 2;
+		if(color[i] == 4) color[i]--;
+	}
+}
+
+void reduce_and_color_conf(struct graph* g, int conf_num, struct vertex ** map) {
+    struct edge* contracted_edges[4];
+    struct edge* e;
+    int i, r, n;
+    
+    // reduce
+    if (conf[conf_num].x == 0) {
+        e = map[conf[conf_num].r+1]->e;
+        contract_edge(g, e);
+        contracted_edges[0] = e;
+        find_coloring(g);
+        decontract_edge(g, contracted_edges[0]);
+    } 
+	else {
+        for (i = 0; i < conf[conf_num].x; i++) {
+            e = find_edge(map[conf[conf_num].X[i]->v->num],map[conf[conf_num].X[i]->rev->v->num]);
+            contract_edge(g, e);
+            contracted_edges[i] = e;
+        }
+        find_coloring(g);
+        for (i = 0; i < conf[conf_num].x; i++) {
+            decontract_edge(g, contracted_edges[i]);
+        }
+    }
+    // colors
+    r = conf[conf_num].r;
+    n = conf[conf_num].n;
+    color[1] = 1;
+    for(i = 2; i <= r; i++){
+    	color[i] = color[i-1] ^ find_edge(map[i-1], map[i])->color;
+	}
+	// updates the global array color with the correct coloring of the configuration assuming color[1] == 0
+	conf_brute_force_coloring(conf_num);
+	struct edge *eg;
+	struct vertex *vg;
+	struct vertex* v = conf[conf_num].g.vert;
+	int j;
+	for(i = 1; i <= r; i++) v = v->next;
+	for(i = r + 1; i <= n; i++){
+		e = v->e;
+		for(j = 0; j < v->deg; j++){
+			eg = find_edge(map[v->num], map[e->rev->v->num]);
+			eg->color = v->color ^ e->rev->v->color;
+			e = e->next;
+		}
+		v = v->next;
+	}
 }
 
 int main(){
@@ -2107,9 +2620,17 @@ int main(){
 	
 	read_conf("configurations.txt");
 	
-/*	g = read_graph("data5.txt");
-    test_scs4(g);
+/*	int i;
+	for(i = 1; i <= 3; i++){
+		create_colorings_list(i);
+		printf("%d\n",i);
+	}
 */	
+//	g = read_graph("test1.txt");
+//	check_graph(g);
+//	int i;
+//	for(i = 1; i <= NUM_CONF; i++) brute_force_coloring(&conf[i].g);
+	
 /*
 	printf("Enter file name including extension: \n");
 //	scanf("%s", data);
@@ -2131,8 +2652,9 @@ int main(){
 		}
 	}
 */	
-	g = read_graph("test1.txt");
-	find_coloring(g);
+	g = read_graph("test.txt");
+//	gg = g;
+//	test_scs5(g);
 	
 /*	int cfg = find_configuration(v1);
 	printf("Found config %d\n",cfg);
@@ -2141,9 +2663,13 @@ int main(){
 		printf("map[%d] = %d\n",i, map[i]->num);
 	}
 */
-//	find_coloring(g);
-//	print_graph(g);
-//	color_vertices(g);
+	find_coloring(g);
+	if(ERROR) return;
+	print_graph(g);
+	if(ERROR) return;
+	printf("\n\n");
+	color_vertices(g);
+	if(ERROR) return;
 //	free_graph(g);
 //	printf("Leaking memory: %d\n",memory_in_use);
 	scanf("%*c");
