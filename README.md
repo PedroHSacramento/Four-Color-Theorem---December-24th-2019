@@ -1,7 +1,7 @@
 # Four-Color-Theorem
 Implementation of algorithm to 4-color planar graphs in C. Based on the paper https://people.math.gatech.edu/~thomas/PAP/fc.pdf. 
 
-Sample graphs are provided as example_x.txt. The input graphs must be loopless, planar triangulation, and with no parallel edges. The format of the input graph is as follows: <br/>
+Sample graphs are provided as example_x.txt. The input graphs must be loopless, planar, triangulated, and without parallel edges. The format of the input graph is as follows: <br/>
 <br/>
 n <- number of vertices <br/>
 degree(v1) degree(v2) … degree(vn) <- degree of vertex 1, vertex 2, …, vertex n. <br/>
