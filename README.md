@@ -19,3 +19,4 @@ Please take the following steps to run this code:
 4. change the text inside read_graph(“test.txt”) to the name of the file containing your graph 
 5. compile your code: gcc -o graph graph.c
 6. run your code: ./graph
+ 
