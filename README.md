@@ -5,7 +5,7 @@ Sample graphs are provided as example_x.txt. The input graphs must be loopless, 
 <br/>
 n <- number of vertices <br/>
 degree(v1) degree(v2) … degree(vn) <- degree of vertex 1, vertex 2, …, vertex n. <br/>
-neighbor_1_v1 neighbor_2_v1 … neighbor_i_v1 <- clockwise ordering for edges to neighboring vertices, so that consecutive edges in the list are also consecutive in the graph.  <br/>
+neighbor_1_v1 neighbor_2_v1 … neighbor_i_v1 <- clockwise ordering for edges to neighboring vertices
 neighbor_1_v2 neighbor_2_v2 … neighbor_j_v2  <br/>
 . <br/>
 . <br/>
