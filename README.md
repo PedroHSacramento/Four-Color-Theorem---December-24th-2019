@@ -13,7 +13,7 @@ neighbor_1_v2 neighbor_2_v2 … neighbor_j_v2  <br/>
 neighbor_1_vn neighbor_2_vn … neighbor_k_vn <br/>
 <br/>
 Please take the following steps to run this code:
-1. download the files into a folder or clone the repository
+1. download the files graph.c and configurations.txt into a folder or clone the repository
 2. open your Command Prompt/Terminal and navigate to the directory containing the files, such as: cd ~/Desktop/Four-Color-Theorem
 3. open your graph.c file and scroll to the main function at the bottom of the file
 4. change the text inside read_graph(“test.txt”) to the name of the file containing your graph 
