@@ -37,7 +37,7 @@ int num_label = 1;
 int color[100], color_res[100];
 // array with the number of different vertices considered in each rule
 int rule_size[] = { 2,  2,  3,  3,  4,  4,  5,  5,  5,  5,  6,  6,
-    6,  6,  7,  7,  4,  4,  5,  5,  6,  6,  6,  7,  7,  8,  8,  8,
+	6,  6,  7,  7,  4,  4,  5,  5,  6,  6,  6,  7,  7,  8,  8,  8,
 	6,  6,  8,  8,  8,  8,  9,  9,  8,  8, 10, 10,  8,  8,  8,  8,
 	8,  8,  6,  6,  9,  9,  9,  9,  9,  9, 10, 10,  7,  7,  8,  8,
 	8,  8, 10, 10, 10, 10, 10};
@@ -303,8 +303,8 @@ struct configuration {
 	int r;							// r is the ring-size;
 	int a;							// a is the cardinality of C ; and
 	int b;							// b is the cardinality of C' (see discussion before (3.2) in the paper);
-    int x;							// |X|
-    struct edge* X[4];				// set X as described in the paper
+	int x;							// |X|
+	struct edge* X[4];				// set X as described in the paper
 	struct graph* g;				// graph representing the configuration
 	int *ring_colorings;			// array containing possible ring colorings of this configuration, mathced with conf_colorings
 	int *conf_colorings;			// array containing possible configuration colorings of this configuration
@@ -359,7 +359,7 @@ void read_conf(char* data){
 
 	char N[100];
 	int i, j, k, u, skip;
-    int X_edges[8];
+	int X_edges[8];
 	struct vertex* v1;
 	struct vertex* v2;
 	struct edge* e;
@@ -371,18 +371,18 @@ void read_conf(char* data){
 		fscanf(ptr,"%d",&conf[i].r);
 		fscanf(ptr,"%d",&conf[i].a);
 		fscanf(ptr,"%d",&conf[i].b);
-        fscanf(ptr,"%d",&conf[i].x);
+		fscanf(ptr,"%d",&conf[i].x);
 
-        conf[i].g = (struct graph*) malloc(sizeof(struct graph));
-        
-        if( conf[i].g == NULL ){
+		conf[i].g = (struct graph*) malloc(sizeof(struct graph));
+
+		if( conf[i].g == NULL ){
 			printf("read_conf: Memory error: not enough space for new graph in function read_graph\n");
 			ERROR = true;
 			return;
-        }
+		}
 
-        conf[i].ring_colorings = NULL;
-        conf[i].conf_colorings = NULL;
+		conf[i].ring_colorings = NULL;
+		conf[i].conf_colorings = NULL;
 		conf[i].g->vert = NULL;
 		conf[i].g->n = 0;
 
@@ -390,28 +390,28 @@ void read_conf(char* data){
 		for(j = 1; j <= conf[i].n; j++){
 			v1 = (struct vertex*) malloc(sizeof(struct vertex));
 			if(v1 == NULL){
-				printf("read_conf: Memory error: not enough space for new vertex in function read_graph\n");
+			printf("read_conf: Memory error: not enough space for new vertex in function read_graph\n");
+			ERROR = true;
+			return;
+		}
+		v1->num = j;
+		add_to_vertex_list(conf[i].g, v1);
+		v1->e = NULL;
+		}
+		v1 = conf[i].g->vert;
+		// store the vertices in X: make the edges after graph constructed below
+		for(j = 0; j < conf[i].x; j++) {
+			int a;
+			int b;
+			fscanf(ptr, "%d", &X_edges[2*j]);
+			fscanf(ptr, "%d", &X_edges[2*j+1]);
+			if(X_edges[2*j] > conf[i].n | X_edges[2*j+1] > conf[i].n){
+				printf("read_conf: Invalid vertex in X has number higher than n \n");
 				ERROR = true;
 				return;
 			}
-			v1->num = j;
-			add_to_vertex_list(conf[i].g, v1);
-			v1->e = NULL;
 		}
-		v1 = conf[i].g->vert;
-        // store the vertices in X: make the edges after graph constructed below
-        for(j = 0; j < conf[i].x; j++) {
-            int a;
-            int b;
-            fscanf(ptr, "%d", &X_edges[2*j]);
-            fscanf(ptr, "%d", &X_edges[2*j+1]);
-            if(X_edges[2*j] > conf[i].n | X_edges[2*j+1] > conf[i].n){
-                printf("read_conf: Invalid vertex in X has number higher than n \n");
-                ERROR = true;
-                return;
-            }
-        }
-        // create the graph from adjacency list (similar to read_graph)
+		// create the graph from adjacency list (similar to read_graph)
 		for(j = 1; j <= conf[i].n; j++){
 			v1->e = NULL;
 			fscanf(ptr,"%d",&skip);
@@ -421,7 +421,7 @@ void read_conf(char* data){
 				ERROR = true;
 				return;
 			}
-            // for each vertex store its neighbors
+			// for each vertex store its neighbors
 			for(k = 0; k < v1->deg; k++){
 				fscanf(ptr,"%d",&u);
 				if(u <= 0 && u > conf[i].g->n){
@@ -431,27 +431,27 @@ void read_conf(char* data){
 				}
 				v2 = v1->next;
 				while(v2->num != u){
-					v2 = v2->next;
-				}
-				add_edge(v1, v2);
+				v2 = v2->next;
 			}
-			v1 = v1->next;
+			add_edge(v1, v2);
 		}
-        // store the edges to conf.X by going through vertices and finding them
-        for (j = 0; j < conf[i].x; j++) {
-            // find the first vertex
-            v1 = conf[i].g->vert;
-            while(v1->num != X_edges[2*j]){
-                v1 = v1->next;
-            }
-            e = v1->e;
-            while(e->rev->v->num != X_edges[2*j+1]) {
-                e = e->next;
-            }
-            conf[i].X[j] = e;
-        }
+		v1 = v1->next;
+		}
+		// store the edges to conf.X by going through vertices and finding them
+		for (j = 0; j < conf[i].x; j++) {
+			// find the first vertex
+			v1 = conf[i].g->vert;
+			while(v1->num != X_edges[2*j]){
+				v1 = v1->next;
+			}
+			e = v1->e;
+			while(e->rev->v->num != X_edges[2*j+1]) {
+				e = e->next;
+			}
+			conf[i].X[j] = e;
+		}
 		for (j = 0; j < conf[i].g->n; j++) {
-			fscanf(ptr,"%d",&skip);;
+			fscanf(ptr,"%d",&skip);
 		}
 	}
 	fclose(ptr);
@@ -460,68 +460,68 @@ void read_conf(char* data){
 // splits the graph into two graphs, one containing the inside and another containing the outside
 // of the given circuit, size refers to the size of the circuit, returns the other graph
 struct graph* split_graph(struct graph* g1, int size, struct edge* circuit[5]) {
-    int i;
-    struct graph* g2;
-    struct edge*e;
-    struct vertex* vnew_list[5];
-    struct vertex * v_interior; // used in graph separating dfs
-    // 1. create copy of circuit
-    for (i = 0; i < size; i++) {
-        vnew_list[i] = (struct vertex*) malloc(sizeof(struct vertex));
-        vnew_list[i]->num = circuit[i]->v->num;
-        vnew_list[i]->e = NULL;
-        vnew_list[i]->deg = 0;
-    }
-    // 2. add edges between vertices
-    for (i = 0; i < size; i++) {
-        add_edge(vnew_list[i], vnew_list[(i+1)%size]);
-        vnew_list[i]->deg++;
-        add_edge(vnew_list[i], vnew_list[((i-1)+size)%size]);
-        vnew_list[i]->deg++;
-    }
-    // 3. enforce ordering on vertices to have clockwise (same as input edges in scs)
-    for (i = 0; i < size; i++) {
-        vnew_list[i]->e = find_edge(vnew_list[i], vnew_list[(i+1)%size]);
-        circuit[i]->v->e = circuit[i];
-    }
-    // 4. create new graph g2
-    g2 = (struct graph*) malloc(sizeof(struct graph));
-    if( g2 == NULL ){
-    	
-    }
-    g2->n = 0;
+	int i;
+	struct graph* g2;
+	struct edge*e;
+	struct vertex* vnew_list[5];
+	struct vertex * v_interior; // used in graph separating dfs
+	// create copy of circuit
+	for (i = 0; i < size; i++) {
+		vnew_list[i] = (struct vertex*) malloc(sizeof(struct vertex));
+		vnew_list[i]->num = circuit[i]->v->num;
+		vnew_list[i]->e = NULL;
+		vnew_list[i]->deg = 0;
+	}
+	// add edges between vertices
+	for (i = 0; i < size; i++) {
+		add_edge(vnew_list[i], vnew_list[(i+1)%size]);
+		vnew_list[i]->deg++;
+		add_edge(vnew_list[i], vnew_list[((i-1)+size)%size]);
+		vnew_list[i]->deg++;
+	}
+	// enforce ordering on vertices to have clockwise (same as input edges in scs)
+	for (i = 0; i < size; i++) {
+		vnew_list[i]->e = find_edge(vnew_list[i], vnew_list[(i+1)%size]);
+		circuit[i]->v->e = circuit[i];
+	}
+	// create new graph g2
+	g2 = (struct graph*) malloc(sizeof(struct graph));
+	if( g2 == NULL ){
+
+	}
+	g2->n = 0;
 	g2->vert = NULL;
-    // 5. call graph separating dfs (alters the vertex list of g1 and g2)
-    set_visited_false(g1);
-    for (i = 0; i < size; i++) circuit[i]->v->visited = true;
-    for (i = 0; i < size; i++){
-        e = circuit[i]->next;
-        while (e!= circuit[(i-1+size)%size]->rev) {
-            if (!e->rev->v->visited)  graph_separating_dfs(e->rev->v,g1,g2);
-            e = e->next;
-        }
-    }
-    for (i = 0; i < size; i++)  add_to_vertex_list(g2,vnew_list[i]);
-    // 6. remap the internal edges into g2
-    for (i = 0; i < size; i++) {
-        e = circuit[i]->next;
-        e->prev = vnew_list[i]->e;
-        vnew_list[i]->e->next = e;
-        while (e!=circuit[(i-1+size)%size]->rev) {
-            e->v = vnew_list[i];
-            vnew_list[i]->deg++;
-            e = e->next;
-        }
-        vnew_list[i]->e->prev->prev = e->prev; // connect outer parts
-        e->prev->next = vnew_list[i]->e->prev;
-    }
-    // 7. remap the internal edges out of g1
-    for (i = 0; i < size; i++) {
-        circuit[i]->next = circuit[(i-1+size)%size]->rev;
-        circuit[(i-1+size)%size]->rev->prev = circuit[i];
-        circuit[i]->v->deg -= vnew_list[i]->deg - 2;
-    }
-    return g2;
+	// call graph separating dfs (alters the vertex list of g1 and g2)
+	set_visited_false(g1);
+	for (i = 0; i < size; i++) circuit[i]->v->visited = true;
+	for (i = 0; i < size; i++){
+		e = circuit[i]->next;
+		while (e!= circuit[(i-1+size)%size]->rev) {
+			if (!e->rev->v->visited)  graph_separating_dfs(e->rev->v,g1,g2);
+			e = e->next;
+		}
+	}
+	for (i = 0; i < size; i++)  add_to_vertex_list(g2,vnew_list[i]);
+	// remap the internal edges into g2
+	for (i = 0; i < size; i++) {
+		e = circuit[i]->next;
+		e->prev = vnew_list[i]->e;
+		vnew_list[i]->e->next = e;
+		while (e!=circuit[(i-1+size)%size]->rev) {
+		e->v = vnew_list[i];
+		vnew_list[i]->deg++;
+		e = e->next;
+	}
+	vnew_list[i]->e->prev->prev = e->prev; // connect outer parts
+	e->prev->next = vnew_list[i]->e->prev;
+	}
+	// remap the internal edges out of g1
+	for (i = 0; i < size; i++) {
+		circuit[i]->next = circuit[(i-1+size)%size]->rev;
+		circuit[(i-1+size)%size]->rev->prev = circuit[i];
+		circuit[i]->v->deg -= vnew_list[i]->deg - 2;
+	}
+	return g2;
 }
 
 // short circuit subroutine for circuit size 3
@@ -530,98 +530,98 @@ struct graph* split_graph(struct graph* g1, int size, struct edge* circuit[5]) {
 // creates a new circuit for one of the graphs, the other uses original.
 // ei are the edges of the short circuit, in cw orientation
 void scs_3(struct graph* g1,struct edge* e1,struct edge* e2,struct edge* e3){
-    struct graph* g2;
-    struct edge* e;
-    // create new vertices
-    struct vertex * vnew_1;
-    struct vertex * vnew_2;
-    struct vertex * vnew_3;
-    struct vertex* v_temp;
-    struct edge* edge_list[3];
-    int perm[4];
+	struct graph* g2;
+	struct edge* e;
+	// create new vertices
+	struct vertex * vnew_1;
+	struct vertex * vnew_2;
+	struct vertex * vnew_3;
+	struct vertex* v_temp;
+	struct edge* edge_list[3];
+	int perm[4];
 
-    edge_list[0] = e1;
-    edge_list[1] = e2;
-    edge_list[2] = e3;
-    
-    g2 = split_graph(g1, 3, edge_list);
-    vnew_1 = g2->vert->prev->prev->prev;
-    vnew_2 = g2->vert->prev->prev;
-    vnew_3 = g2->vert->prev;
-    // color the two divided graph
+	edge_list[0] = e1;
+	edge_list[1] = e2;
+	edge_list[2] = e3;
+
+	g2 = split_graph(g1, 3, edge_list);
+	vnew_1 = g2->vert->prev->prev->prev;
+	vnew_2 = g2->vert->prev->prev;
+	vnew_3 = g2->vert->prev;
+	// color the two divided graph
 	find_coloring(g1);
 	find_coloring(g2);
-    // match the colorings
-    perm[vnew_1->e->color] = e1->color;
-    perm[vnew_2->e->color] = e2->color;
-    perm[vnew_3->e->color] = e3->color;
-    color_change(g2, perm);
-    // fuse the graphs back together
-    fuse_vertex(e1->v, vnew_1);
-    fuse_vertex(e2->v, vnew_2);
-    fuse_vertex(e3->v, vnew_3);
-    // change the vertex list of g1
-    remove_from_vertex_list(g2,vnew_1);
-    remove_from_vertex_list(g2,vnew_2);
-    remove_from_vertex_list(g2,vnew_3);
-    // combine the vertex lists
-    v_temp = g1->vert->next;
-    g1->vert->next = g2->vert->next;
-    g2->vert->next->prev = g1->vert;
-    g2->vert->next = v_temp;
-    v_temp->prev = g2->vert;
-    g1->n += g2->n;
-    // free allocated memory
-    free(vnew_1);
-    free(vnew_2);
-    free(vnew_3);
-    free(g2);
+	// match the colorings
+	perm[vnew_1->e->color] = e1->color;
+	perm[vnew_2->e->color] = e2->color;
+	perm[vnew_3->e->color] = e3->color;
+	color_change(g2, perm);
+	// fuse the graphs back together
+	fuse_vertex(e1->v, vnew_1);
+	fuse_vertex(e2->v, vnew_2);
+	fuse_vertex(e3->v, vnew_3);
+	// change the vertex list of g1
+	remove_from_vertex_list(g2,vnew_1);
+	remove_from_vertex_list(g2,vnew_2);
+	remove_from_vertex_list(g2,vnew_3);
+	// combine the vertex lists
+	v_temp = g1->vert->next;
+	g1->vert->next = g2->vert->next;
+	g2->vert->next->prev = g1->vert;
+	g2->vert->next = v_temp;
+	v_temp->prev = g2->vert;
+	g1->n += g2->n;
+	// free allocated memory
+	free(vnew_1);
+	free(vnew_2);
+	free(vnew_3);
+	free(g2);
 }
 
 // deletes config in graph edge by edge
 // returns list of edges deleted in order
 struct edge** delete_conf(struct graph* g, int conf_num, struct vertex** map) {
-    int i, j, deg;
-    int r = conf[conf_num].r;
-    int n = conf[conf_num].n;
-    int k = 0;
-    struct edge** edge_deleted = (struct edge**) malloc(sizeof(struct edge)*(3*n-2*r-3)*2);
-    struct vertex* v;
-    struct edge* e;
-    
-    if( edge_deleted == NULL ){
+	int i, j, deg;
+	int r = conf[conf_num].r;
+	int n = conf[conf_num].n;
+	int k = 0;
+	struct edge** edge_deleted = (struct edge**) malloc(sizeof(struct edge)*(3*n-2*r-3)*2);
+	struct vertex* v;
+	struct edge* e;
+
+	if( edge_deleted == NULL ){
 		printf("Memory error: not enough space for deleted edges in function delete_conf\n");
 		ERROR = true;
 		return NULL;
 	}
-    
-    for (i = r + 1; i <= n; i++) {
-        v = map[i];
-        deg = v->deg;
-        for (j = 0; j < deg; j++) {
-            e = v->e;
-            remove_from_edge_list(e);
-            remove_from_edge_list(e->rev);
-            edge_deleted[k++] = e;
-            edge_deleted[k++] = e->rev;
-        }
-        remove_from_vertex_list(g, v);
-    }
-    return edge_deleted;
+
+	for (i = r + 1; i <= n; i++) {
+		v = map[i];
+		deg = v->deg;
+		for (j = 0; j < deg; j++) {
+			e = v->e;
+			remove_from_edge_list(e);
+			remove_from_edge_list(e->rev);
+			edge_deleted[k++] = e;
+			edge_deleted[k++] = e->rev;
+		}
+		remove_from_vertex_list(g, v);
+	}
+	return edge_deleted;
 }
 
 // reinserts deleted edges of configuration back into the graph
 void reinsert_conf(struct graph* g, int conf_num, struct vertex** map, struct edge** edge_deleted) {
-    int i;
-    int r = conf[conf_num].r;
-    int n = conf[conf_num].n;
-    struct edge* e;
-    for (i = (3*n-2*r-3)*2; i > 0 ; i--) {
-        reinsert_to_edge_list(edge_deleted[i-1]);
-    }
-    for (i = r + 1; i <= n; i++) {
-        add_to_vertex_list(g, map[i]);
-    }
+	struct edge* e;
+	int i;
+	int r = conf[conf_num].r;
+	int n = conf[conf_num].n;
+	for (i = (3*n-2*r-3)*2; i > 0 ; i--) {
+		reinsert_to_edge_list(edge_deleted[i-1]);
+	}
+	for (i = r + 1; i <= n; i++) {
+		add_to_vertex_list(g, map[i]);
+	}
 }
 
 // creates an edge between e1->v and e2->v, cyclically after e1 around v and after e2 around v2
@@ -1628,7 +1628,7 @@ struct edge** find_short_circuit(struct vertex* hub){
 
 // main coloring function
 void find_coloring(struct graph* g){
-    struct vertex* v;
+	struct vertex* v;
 	struct vertex* hub;
 	struct vertex** map;
 	struct edge *e1, *e2, *e3, *e4, *e5;
@@ -2976,7 +2976,7 @@ void find_ring_colorings(int conf_num){
 
 int main(){
 	struct graph* g;
-	char data[256] = "testcc.txt";
+	char data[256];
 	read_conf("configurations.txt");
 	printf("Please input the name of the file containing the graph.\n");
 	scanf("%s",data);
