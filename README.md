@@ -15,8 +15,7 @@ neighbor_1_vn neighbor_2_vn … neighbor_k_vn <br/>
 Please take the following steps to run this code:
 1. download the files graph.c and configurations.txt into a folder or clone the repository
 2. open your Command Prompt/Terminal and navigate to the directory containing the files, such as: cd ~/Desktop/Four-Color-Theorem
-3. open your graph.c file and scroll to the main function at the bottom of the file
-4. change the text inside read_graph(“test.txt”) to the name of the file containing your graph 
-5. compile your code: gcc -o graph graph.c
-6. run your code: ./graph
- 
+3. open your planar_graph_coloring.c file and scroll to the main function at the bottom of the file
+4. compile your code: gcc -o planar_graph_coloring planar_graph_coloring.c
+5. run your code: ./planar_graph_coloring
+6. input the name of the file containing the graph to be colored
