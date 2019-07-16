@@ -1,11 +1,9 @@
 /* planar_graph_coloring.c
-
 	This is a program to 4-color planar graphs. It is based on th paper
 	'Four-Colour Theorem' by N. Robertson, D. P. Sanders, P. D. Seymour and R.
 	Thomas. It was developed by Pedro Sacramento and Haidar Jamal under the
 	guidance of Dr. Robin Thomas as a part of Georgia Institute of Technology's
 	Matematics Department Summer REU 2019.
-
 	Version 1, July 11th, 2019 
 */
 
@@ -310,39 +308,68 @@ struct configuration {
 	int *conf_colorings;			// array containing possible configuration colorings of this configuration
 } conf[NUM_CONF + 1];
 
+// read functions
+void read_conf(char*);
+struct graph* read_graph(char*);
+
+// utility functions, they perform different types of manipulations over the graph
+void remove_from_edge_list(struct edge*);
 void reinsert_to_edge_list(struct edge*);
+void fuse_vertex(struct vertex*, struct vertex*);
 void contract_edge(struct graph*, struct edge*);
 void decontract_edge(struct graph*, struct edge*);
-void color_dfs(struct vertex*, int*);
-void color_vertices(struct graph* g);
 struct edge* find_edge(struct vertex*, struct vertex*);
 void add_edge(struct vertex*, struct vertex*);
-struct graph* read_graph(char*);
-struct graph* read_graph_colored(char*);
-void free_graph(struct graph*);
-void print_dfs(struct vertex*);
-void print_graph(struct graph*);
-void apply_rules(struct edge*);
-struct vertex* find_hub(struct graph*);
-void base_case_coloring(struct graph*);
-void parallel_edges_coloring(struct graph*, struct edge*, struct edge*);
-void remove_from_edge_list(struct edge*);
-void remove_from_vertex_list(struct graph*, struct vertex*);
 void add_to_vertex_list(struct graph*, struct vertex*);
-void degree_three_elimination(struct graph*, struct vertex*);
-void find_coloring(struct graph*);
-void check_graph(struct graph*);
+void remove_from_vertex_list(struct graph*, struct vertex*);
+struct edge* create_edge_between(struct vertex*, struct vertex*, struct edge*, struct edge*);
 void set_visited_false(struct graph*);
+void graph_separating_dfs(struct vertex*, struct graph*, struct graph*);
+void free_graph(struct graph*);
+struct graph* split_graph(struct graph*, int, struct edge**);
+
+// coloring functions
+void find_coloring(struct graph*);
+void parallel_edges_coloring(struct graph*, struct edge*, struct edge*);
+void base_case_coloring(struct graph*);
+void degree_three_elimination(struct graph*, struct vertex*);
 void scs_3(struct graph*, struct edge*, struct edge*, struct edge*);
 void scs_4(struct graph*, struct edge*, struct edge*, struct edge*, struct edge*);
 void scs_5(struct graph*, struct edge*, struct edge*, struct edge*, struct edge*, struct edge*);
-struct edge* create_edge_between(struct vertex*, struct vertex*, struct edge*, struct edge*);
-void graph_separating_dfs(struct vertex*, struct graph*, struct graph*);
-void color_change(struct graph*, int*);
-void fuse_vertex(struct vertex*, struct vertex*);
 void reduce_and_color_conf(struct graph*, int, struct vertex**);
-void output_graph(struct graph*);
+void color_dfs(struct vertex*, int*);
+void color_vertices(struct graph* g);
+void conf_brute_force_coloring(int);
+
+// auxiliary coloring functions, they perform intermediate steps for the coloring functions
+struct vertex* find_hub(struct graph*);
+void apply_rules(struct edge*);
 void find_ring_colorings(int);
+void color_change(struct graph*, int*);
+struct edge** find_short_circuit(struct vertex*);
+int find_configuration(struct vertex*, struct vertex**);
+struct vertex** find_nth_configuration(struct vertex*, int, struct vertex**);
+bool iso_dfs(int, struct vertex*, struct vertex*, struct vertex**, bool);
+struct edge** delete_conf(struct graph*, int, struct vertex**);
+void reinsert_conf(struct graph*, int, struct vertex**, struct edge**);
+void rib(struct edge*, int);
+void rib_conf(struct edge*, int);
+void rotate_circuit(struct edge**, int);
+int find_scs5_current_coloring_case(struct edge**);
+int find_scs5_coloring_case(struct edge**, struct edge**);
+void find_scs5_coloring_case_dfs(struct edge**, bool*);
+bool change_scs5_circuit_dfs(struct edge**, int, bool*);
+int find_index_of_coloring(struct edge**, int);
+int search_conf_colorings(int*, int, int, int);
+int change_circuit_dfs(struct edge**, int, int);
+
+// debug functions
+void check_graph(struct graph*);
+void renumber_vertices(struct graph*);
+void output_graph(struct graph*);
+void print_dfs(struct vertex*);
+void print_graph(struct graph*);
+
 
 // reads list of configurations from text file according to the structure defined above
 // http://people.math.gatech.edu/~thomas/FC/ftpinfo.html for more info
@@ -1406,7 +1433,7 @@ void degree_three_elimination(struct graph* g, struct vertex* head){
 	add_to_vertex_list(g, head);
 }
 
-// dfs to check graph isomorphism
+// dfs to check subgraph isomorphism between the graph and a configuration
 bool iso_dfs(int r, struct vertex* vg, struct vertex* vc, struct vertex** map, bool clockwise){
 	struct edge* eg;
 	struct edge* ec;
