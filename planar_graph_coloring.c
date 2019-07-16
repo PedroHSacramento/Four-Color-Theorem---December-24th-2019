@@ -365,7 +365,6 @@ int change_circuit_dfs(struct edge**, int, int);
 
 // debug functions
 void check_graph(struct graph*);
-void renumber_vertices(struct graph*);
 void output_graph(struct graph*);
 void print_dfs(struct vertex*);
 void print_graph(struct graph*);
@@ -1826,22 +1825,18 @@ void find_coloring(struct graph* g){
 	return;
 }
 
-void renumber_vertices(struct graph* g){
+// if the program fails, we renumber the edges from 1 to g->n and output it so it can be used as input
+void output_graph(struct graph* g) {
+	struct edge* e;
 	struct vertex* v = g->vert;
-	int i;
+	int i, j;
+
+	// renumber vertices
 	for(i = 1; i <= g->n; i++){
 		v->num = i;
 		v = v->next;
 	}
-}
-
-void output_graph(struct graph* g) {
-	struct edge* e;
-	struct vertex* v;
-	int i, j;
-
-	renumber_vertices(g);
-
+	// output graph
 	printf("%d\n", g->n);
 	v = g->vert;
 	for (i = 0; i < g->n;i++) {
@@ -2161,6 +2156,7 @@ int find_scs5_coloring_case(struct edge** circuit, struct edge** circuit2){
 	return -1;
 }
 
+// a dfs using rib changes to search for a specific coloring case of a circuit of size 5
 bool change_scs5_circuit_dfs(struct edge** circuit, int coloring_case, bool* colorings){
 	int i, cur_case;
 
@@ -2186,7 +2182,7 @@ bool change_scs5_circuit_dfs(struct edge** circuit, int coloring_case, bool* col
 	return false;
 }
 
-// can be made more efficient
+// adjusts a circuit of size 5 to a specific circuit coloring case
 void change_scs5_circuit(struct edge** circuit, int coloring_case){
 	bool coloring_visited[10];
 	int i, cur_case;
@@ -2611,6 +2607,8 @@ void scs_5(struct graph* g1,struct edge* e1,struct edge* e2,struct edge* e3, str
 }
 
 // assumes vertices from 1 to g->n
+// finds one possible coloring of the configuration
+// not currently in use
 void conf_brute_force_coloring(int conf_num){
 	struct graph* g;
 	struct vertex* v;
@@ -2709,29 +2707,32 @@ int search_conf_colorings(int* list, int coloring, int start, int end){
 	return search_conf_colorings(list,coloring, start, mid);
 }
 
-// admits that the previous face is the infinity face of a near triangulation (not a triangle)
+// admits that the previous face is part of the configuration and that the interior of the configuration is colored 0 
+// performs a rib change starting at e, fixing color and going to the face between e and e->next
 void rib_conf(struct edge* e, int color){
-	int count = 0;
 	while(e->color != 0){		// condition for not being inside the deleted conf
 		e->color ^= color;
 		e->rev->color = e->color;
 		if(e->next->color == color) e = e->next->rev->next;
 		else e = e->next;
-		count++;
 	}
 }
 
+// performs a rib change dfs to search for ring colorings for which the interior of the configuration can be filled
 int change_circuit_dfs(struct edge** circuit, int size, int conf_num){
 	int i, j, other_color, cur_case;
 	int pos, res;
 	bool outside;
-
+			
+	// the configuration can be either inside, clockwise between circuit[i] and circuit[i-1]->rev
+	// or outside, clockwise between circuit[i-1]->rev and circuit[i]. This matters for the rib_conf calls
 	outside = (circuit[0]->prev->color == 0);
+	
 	if(conf[conf_num].ring_colorings == NULL) find_ring_colorings(conf_num);
 	cur_case = find_index_of_coloring(circuit, size);
-	ring_col_visited[cur_case] = cur_dfs;
+	ring_col_visited[cur_case] = cur_dfs;				// if a coloring wasn't visited so far it has ring_col_visited < cur_dfs, else it is equal
 	for(i = 0; i < size; i++){
-		other_color = (circuit[i]->color % 3) + 1;
+		other_color = (circuit[i]->color % 3) + 1;		// one of the colors from 1 to 3 different than circuit[i]->color
 		if(outside) rib_conf(circuit[i], other_color);
 		else rib_conf(circuit[i]->rev, other_color);
 		cur_case = find_index_of_coloring(circuit, size);
@@ -2743,7 +2744,8 @@ int change_circuit_dfs(struct edge** circuit, int size, int conf_num){
 		}
 		if(outside) rib_conf(circuit[i], other_color);
 		else rib_conf(circuit[i]->rev, other_color);
-		other_color ^= circuit[i]->color;
+		
+		other_color ^= circuit[i]->color;			// the other color from 1 to 3 different than circuit[i]->color
 		if(outside) rib_conf(circuit[i], other_color);
 		else rib_conf(circuit[i]->rev,other_color);
 		cur_case = find_index_of_coloring(circuit, size);
@@ -2759,6 +2761,7 @@ int change_circuit_dfs(struct edge** circuit, int size, int conf_num){
 	return -1;
 }
 
+// reduces a configuration, colors it accordingly, undoes the reduction and adjusts the coloring
 void reduce_and_color_conf(struct graph* g, int conf_num, struct vertex ** map) {
 	struct edge** deleted_conf_edges;
 	struct edge* edge_list[conf[conf_num].r];
@@ -2906,6 +2909,7 @@ void reduce_and_color_conf(struct graph* g, int conf_num, struct vertex ** map) 
 	}
 }
 
+// a brute force that finds ring colorings of a configuration in lexicographical order
 void find_ring_colorings(int conf_num){
 	struct vertex* v;
 	struct edge* e;
@@ -2914,6 +2918,9 @@ void find_ring_colorings(int conf_num){
 	bool works = true;
 	int last;
 	int ring_cipher, conf_cipher;
+	
+	// since we care about the lexicographical order of the color of the edges but we color the vertices, 
+	// some changes are made to the usual brute force algorithm to take that into account
 
 	conf[conf_num].ring_colorings = (int*) malloc(sizeof(int) * conf[conf_num].a);
 	conf[conf_num].conf_colorings = (int*) malloc(sizeof(int) * conf[conf_num].a);
@@ -2935,18 +2942,18 @@ void find_ring_colorings(int conf_num){
 	n = conf[conf_num].n;
 	v = conf[conf_num].g->vert->next;
 	color[1] = 0;
-	for(i = 2; i <= r; i++){
+	for(i = 2; i <= r; i++){	// color[] receives the first lexicagraphical ring coloring for edges adapted to a vertex coloring 
 		color[i] = color[i-1] ^ 1;	// alternates 0 and 1
 		color_res[i] = (1 << color[i-1]);
 		v = v->next;				// v->num == r + 1 at the end
 	}
-	for(i = r + 1; i <= n; i++) color[i] = -1;
-	if(r % 2 == 1){
+	if(r % 2 == 1){				// odd case is a bit different since the xor of all edges in a cycle must be zero
 		last = r - 1;
 		color[r] = 3;
 		color_res[r] = 3;
 	}
-	else last = r;
+	else last = r;	// last is the last index that follows the pattern 0, 1, 0, 1, ..., it is used for lexicographical purposes
+	for(i = r + 1; i <= n; i++) color[i] = -1;
 	while(last >= 2){
 		if(v->num == last) last--;
 		e = v->e;
@@ -2963,10 +2970,10 @@ void find_ring_colorings(int conf_num){
 			color[v->num] = color[v->num - 1];
 		}
 		else color[v->num] = ((color[v->num] ^ color[v->num - 1]) + 1) ^ color[v->num - 1];
-		while( ( ( ((1 << color[v->num]) & color_res[v->num]) > 0 ) && (color[v->num] ^ color[v->num - 1]) < 4 )
-			|| ((v->num == last + 1) && (((color[v->num] == 2) && (color[v->num-1] == 1)) || ((color[v->num] == 3) && (color[v->num-1] == 0))) ) )
-			color[v->num] = ((color[v->num] ^ color[v->num - 1]) + 1) ^ color[v->num - 1];
-		if((color[v->num] ^ color[v->num - 1]) >= 4){
+		while( ( ( ((1 << color[v->num]) & color_res[v->num]) > 0 ) && (color[v->num] ^ color[v->num - 1]) < 4 )	// condition for the color to be valid
+			|| ((v->num == last + 1) && (((color[v->num] == 2) && (color[v->num-1] == 1)) || ((color[v->num] == 3) && (color[v->num-1] == 0))) ) )	// condition for lexicographical
+			color[v->num] = ((color[v->num] ^ color[v->num - 1]) + 1) ^ color[v->num - 1];		// receives next color lexicagraphically for the edges
+		if((color[v->num] ^ color[v->num - 1]) >= 4){	// tried all colorings, go to previoud vertex and continue 
 			color[v->num] = -1;
 			v = v->prev;
 		}
@@ -2977,17 +2984,17 @@ void find_ring_colorings(int conf_num){
 			else x = 7;
 			for(i = 1; i < r; i++){
 				for(j = 0; j < (color[i] ^ color[i % r + 1]) - 1; j++){
-					ring_cipher += dp[r - i][x ^ (1 << j)];
+					ring_cipher += dp[r - i][x ^ (1 << j)];		
 				}
 				x ^= (1 << ((color[i] ^ color[i % r + 1]) - 1));
 			}
-			conf[conf_num].ring_colorings[num_colorings] = ring_cipher;
+			conf[conf_num].ring_colorings[num_colorings] = ring_cipher;	// ring_cipher receives the index of this coloring among all colorings of the ring that xor to zero
 			conf_cipher = color[r + 1];
 			for(i = r + 2; i <= n; i++){
 				conf_cipher <<= 2;
 				conf_cipher += color[i];
 			}
-			conf[conf_num].conf_colorings[num_colorings] = conf_cipher;
+			conf[conf_num].conf_colorings[num_colorings] = conf_cipher;	// conf_cipher is simply the vertex color of the interior in base 4
 			num_colorings++;
 			// go to the next possible ring
 			for(i = r + 1; i <= n; i++){
