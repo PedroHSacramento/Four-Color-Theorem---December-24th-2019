@@ -1515,6 +1515,7 @@ struct edge** find_short_circuit(struct vertex* hub){
 	if(circuit == NULL){
 		printf("Memory error: insufficient memory for circuit in find_short_circuit\n");
 	}
+	for(i = 0; i <  5; i++) circuit[i] = NULL;
 
 	/* sets visited to false */
 	hub->visited = false;
@@ -1623,7 +1624,10 @@ struct edge** find_short_circuit(struct vertex* hub){
 			e1 = e1->next;
 		}
 	}
-	if(vsc == NULL) return NULL;
+	if(vsc == NULL){
+		free(circuit);
+		return NULL;
+	}
 	// looks for the short circuit once we have a repeated vertex 
 	e1 = hub->e;
 	for(i = 0; i < hub->deg; i++){
