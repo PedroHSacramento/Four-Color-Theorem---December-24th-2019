@@ -1,5 +1,6 @@
 # Four-Color-Theorem
-Implementation of algorithm to 4-color planar graphs in C. Based on the paper https://people.math.gatech.edu/~thomas/PAP/fc.pdf. 
+Implementation of algorithm to 4-color planar graphs in C. Based on the paper https://people.math.gatech.edu/~thomas/PAP/fc.pdf. Wirtten jointly by Pedro Sacramento and Haidar Jamal as part of a REU program in Georgie Tech over the Summer of 2019 overseen by Dr. Robin Thomas.
+This is the version of the code as of December 24th, 2019. There are still some bugs to be fixed but the code is able to reliably color graphs of up to a few hundred vertices.
 
 Sample graphs are provided as example_x.txt. The input graphs must be loopless, planar, triangulated, and without parallel edges. The format of the input graph is as follows: <br/>
 <br/>
